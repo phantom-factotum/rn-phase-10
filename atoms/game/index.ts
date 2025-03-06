@@ -3,12 +3,9 @@ import { Card } from "@/types";
 import { useAtom, useAtomValue } from "jotai";
 import { useEffect } from "react";
 import { Alert } from "react-native";
-import rfdc from "rfdc";
-import { lastDiscardedAtom } from "./deck";
 import { GameActionTypes, gameStateAtom, totalPlayersAtom } from "./game";
 import { playerIdsAtom, playersAtom } from "./player";
 import { ActionType } from "./types";
-const deepclone = rfdc();
 const usePlayersReducer = () => {
   return useAtom(playersAtom);
 };
@@ -16,7 +13,6 @@ export type PlayersDispatch = ReturnType<typeof usePlayersReducer>[1];
 export default function useGameHandler() {
   const [players, playersDispatch] = useAtom(playersAtom);
   const playerIds = useAtomValue(playerIdsAtom);
-  const [lastDiscarded] = useAtom(lastDiscardedAtom);
   const [gameState, gameDispatch] = useAtom(gameStateAtom);
   const [totalPlayers] = useAtom(totalPlayersAtom);
   useEffect(() => {
@@ -32,6 +28,7 @@ export default function useGameHandler() {
     }
   }, [players]);
   return {
+    ...gameState,
     startGame: () => {
       gameDispatch({
         type: GameActionTypes.startGame,
@@ -49,8 +46,6 @@ export default function useGameHandler() {
         },
       });
     },
-    lastDiscarded,
-    ...gameState,
     discardCard: (card: Card) => {
       const { activePlayerId } = gameState;
       console.log("active player", activePlayerId);
@@ -59,6 +54,7 @@ export default function useGameHandler() {
         type: ActionType.removeFromHand,
         data: { card },
       });
+      // when skip card is discarded select player to skip
       if (card.type == "skip") {
         const skippablePlayers = Object.values(players).filter(
           ({ id }) => id !== activePlayerId

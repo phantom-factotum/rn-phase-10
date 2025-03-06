@@ -75,11 +75,16 @@ type DrawCardAction = BaseGameAction & {
 type BasicDiscardAction = BaseGameAction & {
   type: GameActionTypes.discardCard;
   data: {
+    // this doesnt work
+    // card: NumberCard|WildCard;
     card: Card;
     targetId?: string;
     playerIds: string[];
   };
 };
+// in discard action, when I checked for card.type == "skip"
+// I thought typescript would infer that the action.data.targetId
+// should exist
 type SkipDiscardAction = BasicDiscardAction & {
   data: {
     card: SkipCard;
@@ -117,6 +122,8 @@ type GameActions =
   | StartGame
   | StartNextRound
   | GameEndAction;
+// typescript couldnt automatically infer that SkipCard
+// discards would contain additional info
 function isSkipAction(
   action: BasicDiscardAction | SkipDiscardAction
 ): action is SkipDiscardAction {
@@ -141,25 +148,28 @@ export const gameStateAtom = atomWithReducer<GameState, GameActions>(
             updatedState.discardPile = [];
           }
         }
+        // player adds  card to hand
         onComplete(card);
+        // prevent player from infinitely drawing
         updatedState.canDraw = false;
         updatedState.canDiscard = true;
         return updatedState;
       }
       case GameActionTypes.discardCard: {
-        // const {card} = action.data
+        // handle skip card
         if (isSkipAction(action)) {
-          // action.data.card.
           updatedState.skipQueue.push(action.data.targetId);
         }
         updatedState.discardPile.push(action.data.card);
         updatedState.canDraw = true;
         updatedState.canDiscard = false;
+        // figure who's turn it is
         const { playerIds } = action.data;
         const activePlayerIndex = playerIds.findIndex(
           (id) => updatedState.activePlayerId == id
         );
         let currentIndex = (activePlayerIndex + 1) % playerIds.length;
+        // if player is at top of skipQueue skip and remove them from queue
         while (updatedState.skipQueue[0] == playerIds[currentIndex]) {
           currentIndex = (currentIndex + 1) % playerIds.length;
           updatedState.skipQueue.shift();
@@ -214,6 +224,9 @@ export const gameStateAtom = atomWithReducer<GameState, GameActions>(
         return updatedState;
       }
       case GameActionTypes.endGame: {
+        // get players who has completed 10th phase
+        // if one player, make them the winner
+        // else 10th phase player with lowest score is winner
       }
       default:
         return state;

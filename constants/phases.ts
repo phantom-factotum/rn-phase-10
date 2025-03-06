@@ -12,6 +12,7 @@ const phases = [
   "1 set of 5 + 1 set of 2",
   "1 set of 5 + 1 set of 3",
 ];
+// rename phase string to be `$PHASE_TYPE of $TOTAL_CARDS`
 const parsePhaseDescription = (phase: string) => {
   phase = phase.replaceAll("1 ", "");
   if (phase.startsWith("2 sets")) {
@@ -27,7 +28,6 @@ const parsePhaseDescription = (phase: string) => {
     return [objectiveType as Objectives, num] as const;
   });
 };
-
 export const verifyPhase = (
   type: Objectives,
   cards: Card[],
@@ -55,7 +55,8 @@ export const verifyPhase = (
   } else if (type === "run") {
     if (cards.length < minCards) return false;
     let isCorrect = true;
-    // find first number index since wilds are usable
+    // use the first number in array to derive what value
+    // wildcards are substituting
     const firstNumberIndex = cards.findIndex((card) => card.type === "number");
     if (firstNumberIndex < 0) return false;
     const firstNumber = parseInt(cards[firstNumberIndex].text, 10);
@@ -109,18 +110,13 @@ export const canHit = (
   return false;
 };
 const PHASES = phases.map((title) => {
-  const verifier = parsePhaseDescription(title);
+  const phaseData = parsePhaseDescription(title);
   return {
     title,
-    objectives2: verifier,
-    objectives: verifier.map(([type, objectiveLength]) => ({
+    objectives: phaseData.map(([type, objectiveLength]) => ({
       type,
       objectiveLength,
       description: `${type} of ${objectiveLength}`,
-      checkCompletions: (cards: Card[]) =>
-        verifyPhase(type, cards, objectiveLength),
-      canHit: (cards: Card[], card: Card, fromStart?: boolean) =>
-        canHit(type, cards, card, fromStart),
     })),
   };
 });

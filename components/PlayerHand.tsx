@@ -2,7 +2,6 @@ import { PlayersDispatch } from "@/atoms/game";
 import { ActionType, PlayerMetadata } from "@/atoms/game/types";
 import PHASES from "@/constants/phases";
 import MaterialCommunityIcons from "@expo/vector-icons/MaterialCommunityIcons";
-import { useState } from "react";
 import { StyleSheet, View } from "react-native";
 import { Gesture, GestureDetector } from "react-native-gesture-handler";
 import { Button, Text } from "react-native-paper";
@@ -27,8 +26,7 @@ export default function PlayerHand({
   name,
 }: Props) {
   const isActivePlayer = player.id == activePlayerId;
-  const [hand, setHand] = useState(player.hand);
-  // useEffect(() => {});
+  // Button presses were failing when nested within the Drag and drop component
   const tap = Gesture.Tap().onBegin(() => {
     console.log("button pressed");
     runOnJS(playersDispatch)(player.id, { type: ActionType.completePhase });
@@ -45,6 +43,10 @@ export default function PlayerHand({
       </View>
       {(isActivePlayer || player.phaseCompleted) && (
         <View>
+          {/* 
+            Normal button presses do not register (I think its because its within the drag and drop component)
+            GestureDetector tap gestures does work tho.
+           */}
           {isActivePlayer &&
             player.canCompletePhase &&
             !player.phaseCompleted && (
@@ -54,7 +56,7 @@ export default function PlayerHand({
             )}
           <View style={styles.row}>
             {player.phaseObjectiveArea.map(({ canComplete, cards }, index) => {
-              // player.phase.objectives[index].
+              // where players stores cards to complete phase
               return (
                 <View
                   style={{ flex: 1 }}
@@ -89,6 +91,11 @@ export default function PlayerHand({
           </View>
         </View>
       )}
+      {/*
+      to save space player's hand are not render when it isnt their turn 
+      so information about the number of cards a player holds is hidden
+      (unless skip card is played, where this info is revealed)
+      */}
       {isActivePlayer && (
         <DraggableCards
           cards={!isActivePlayer ? player.cards : player.hand}

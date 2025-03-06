@@ -29,7 +29,6 @@ export default function DraggableCards({
   dragData,
   style,
 }: Props) {
-  // if (cards.length == 0) return;
   return (
     <Droppable
       style={[styles.container, style]}
@@ -43,7 +42,6 @@ export default function DraggableCards({
         style={{
           flexDirection: "row",
           width: "100%",
-          // marginHorizontal: 5,
           padding: 5,
         }}
       >

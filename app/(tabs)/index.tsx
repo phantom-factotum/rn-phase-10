@@ -12,7 +12,6 @@ import {
   DndProviderProps,
   Draggable,
   Droppable,
-  ItemOptions,
 } from "@mgcrea/react-native-dnd";
 import { useAtom } from "jotai";
 import { Dimensions, StyleSheet, View } from "react-native";
@@ -20,13 +19,6 @@ import { ScrollView } from "react-native-gesture-handler";
 import { Button, Portal } from "react-native-paper";
 import { runOnJS, useSharedValue } from "react-native-reanimated";
 import { SafeAreaView } from "react-native-safe-area-context";
-type OnDragEnd = ({
-  active,
-  over,
-}: {
-  active: ItemOptions;
-  over: ItemOptions | null;
-}) => void;
 
 const initialPhase = 1;
 const showFailedDrops = false;
@@ -35,15 +27,13 @@ const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get("screen");
 export default function HomeScreen() {
   const dragEndX = useSharedValue(0);
   const [players, playersDispatch] = useAtom(playersAtom);
-  const {
-    lastDiscarded,
-    startGame,
-    activePlayerId,
-    canDiscard,
-    canDraw,
-    ...gameHandler
-  } = useGameHandler();
-
+  const { startGame, activePlayerId, canDiscard, canDraw, ...gameHandler } =
+    useGameHandler();
+  // This feels overloaded but the react-native-dnd Grid/Stack components
+  // could not provide this functionality
+  // NOTE: DndProvider crashes app if callback functions arent a worklet or if
+  // state setters are called in them without using runOnJS (tested this when
+  // using useState rather than jotai so maybeits unnecessary)
   const onDragEnd: DndProviderProps["onDragEnd"] = ({ active, over }) => {
     "worklet";
     if (!activePlayerId) {
@@ -67,13 +57,12 @@ export default function HomeScreen() {
     } else if (activeId === overId) {
       return;
     }
-    // dropping to objective area
+    // dropping to  an objective area
     else if (overId?.includes("objectiveArea")) {
       const objectiveIndex: number | undefined =
         over?.data.value?.objectiveIndex;
       const card: Card | undefined = active.data.value.card;
       const targetId: string | undefined = over?.data.value.id;
-      console.log(activeId, overId, activePlayer.phaseCompleted);
       if (!card || objectiveIndex === undefined) return;
       // player is moving cards between objective areas
       else if (activeId.includes("objectiveArea")) {
@@ -109,11 +98,13 @@ export default function HomeScreen() {
         let isFromStart = false;
         const totalObjectives =
           players[targetId || activePlayerId].phaseObjectiveArea.length;
-        // there are at most 2 objectives
+        // droppable area will evenly split screen width between
+        // objectives; so  x drops less than middle will be assumed to be
+        // hit attempts at beginning of run; and greater than middle x drops
+        // will be assumed to be a hit attempt at end of run
         const dropAreaWidth = SCREEN_WIDTH / (2 * totalObjectives);
         const dropAreaStart = dropAreaWidth * (objectiveIndex + 1);
         const middlePoint = dropAreaStart + dropAreaWidth / 2;
-        console.log(middlePoint);
         isFromStart = dragEndX.value < middlePoint;
         runOnJS(gameHandler.hitObjective)({
           card,
@@ -129,16 +120,13 @@ export default function HomeScreen() {
       const objectiveIndex: number | undefined =
         active.data.value.objectiveIndex;
       if (!card || objectiveIndex === undefined) return;
-      // activePlayer is dropping to objective
       if (overId.includes(activePlayerId)) {
         runOnJS(playersDispatch)(activePlayerId, {
           type: ActionType.moveFromObjectiveArea,
           data: { card, objectiveIndex },
         });
       }
-    }
-    // hitting objective
-    else {
+    } else {
       if (showFailedDrops) {
         console.log("drag/dropping to unknown location ");
         console.log(activeId, active.data.value, over?.id);
@@ -149,13 +137,15 @@ export default function HomeScreen() {
   return (
     <SafeAreaView style={styles.container}>
       <Button onPress={startGame}>Deal Hand</Button>
-
       {activePlayerId && (
         <DndProvider
           onDragEnd={onDragEnd}
+          // a delay will allow ScrollView to function
           activationDelay={64}
           key={
-            // force draggable to rerender when activePlayerId changes
+            // onDragEnd event was using stale state so I force the DndProvider
+            // to rerender to use recent state. This occurred when I was using useState rather than
+            // jotai so this could be unnecessary
             activePlayerId +
             Object.values(players)
               .map(
@@ -166,6 +156,8 @@ export default function HomeScreen() {
           }
           onFinalize={(e) => {
             "worklet";
+            // used to determine whether objective is being
+            // hit from the start or end
             dragEndX.value = e.x;
           }}
         >
@@ -192,6 +184,10 @@ export default function HomeScreen() {
               </Droppable>
             </Draggable>
           </View>
+          {/* 
+          If you add enough players a scroll view becomes necessary
+          but it causes the drag and drop component to become buggy
+          */}
           <ScrollView style={{ backgroundColor: "rgb(26, 25, 25)" }}>
             {Object.values(players).map((player, ix) => {
               return (
@@ -201,7 +197,7 @@ export default function HomeScreen() {
                   activePlayerId={activePlayerId}
                   canDiscard={canDiscard}
                   canDraw={canDraw}
-                  name={player.id == "player" ? "Your" : `NPC ${ix}'s`}
+                  name={player.name}
                   key={player.id}
                 />
               );

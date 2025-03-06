@@ -26,6 +26,7 @@ export default function DrawCard({
         onPress={() => drawCard()}
         disabled={!activePlayerId || !canDraw}
       />
+      {/* since drag and drop functionality was added a pressable is not necessary */}
       <TouchableOpacity
         onPress={() => drawCard(true)}
         disabled={!activePlayerId || !canDraw}

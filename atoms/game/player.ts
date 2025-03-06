@@ -15,8 +15,10 @@ export const totalPlayersAtom = atom(2);
 
 const updatePhaseObjectiveArea = (player: PlayerMetadata) => {
   const phaseData = PHASES[player.phase];
+  // for each objective in phase
   player.phaseObjectiveArea = player.phaseObjectiveArea.map(
     (objectiveArea, index) => {
+      // calculate if player can complete
       objectiveArea.canComplete = verifyPhase(
         phaseData.objectives[index].type,
         objectiveArea.cards,
@@ -25,11 +27,16 @@ const updatePhaseObjectiveArea = (player: PlayerMetadata) => {
       return objectiveArea;
     }
   );
+
   player.canCompletePhase = player.phaseObjectiveArea.every(
     ({ canComplete }) => canComplete
   );
   return player;
 };
+// player.hand is the cards that arent in their phase objective area
+// player.cards is the true amount of cards a player holds
+// (if a player fails to complete a phase player.hand will be less than player.cards)
+// so this helper tries to hide how redunant the 2 states are
 const handleHandCard = (
   player: PlayerMetadata,
   card: Card,
@@ -59,6 +66,7 @@ const resetPlayerState = (phase: number) => {
 };
 export type Player = ReturnType<typeof generatePlayer>;
 export type Players = { [key: string]: PlayerMetadata };
+
 export const generatePlayer = (id: string, name: string, phase = 0) => {
   const initialState: PlayerMetadata = {
     id,
@@ -173,15 +181,16 @@ export const generatePlayer = (id: string, name: string, phase = 0) => {
   );
   return playerAtom;
 };
-export const npcAtom = generatePlayer("npc-1", "NPC 1");
 export const playerId = "main-user";
-export const playerAtom = generatePlayer(playerId, "You", 9);
-export const npcsAtomAtom = atom((get) => {
+const playerAtom = generatePlayer(playerId, "You", 9);
+// this is an atom containing atoms
+const npcsAtomAtom = atom((get) => {
   const totalPlayers = get(totalPlayersAtom) - 1;
   return Array(totalPlayers)
     .fill(null)
     .map((_, i) => generatePlayer(`NPC-${i + 1}`, `NPC ${i + 1}`));
 });
+// combine player and npcs into one piece of state
 export const playersAtom = atom(
   (get) => {
     const npcs = get(npcsAtomAtom);
@@ -192,6 +201,7 @@ export const playersAtom = atom(
       return obj;
     }, {} as Players);
   },
+  // create setter that can set both playerAtom and npcsAtomAtom
   (get, set, id: string, action: Action) => {
     if (id == playerId) {
       set(playerAtom, action);
