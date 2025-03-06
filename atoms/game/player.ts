@@ -182,7 +182,7 @@ export const generatePlayer = (id: string, name: string, phase = 0) => {
   return playerAtom;
 };
 export const playerId = "main-user";
-const playerAtom = generatePlayer(playerId, "You", 9);
+const playerAtom = generatePlayer(playerId, "You");
 // this is an atom containing atoms
 const npcsAtomAtom = atom((get) => {
   const totalPlayers = get(totalPlayersAtom) - 1;
