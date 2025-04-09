@@ -1,38 +1,48 @@
-import { Players } from "@/atoms/game/player";
-import { useState } from "react";
+import type { GameState, GameStateDispatch } from "@/atoms/types";
 import { StyleSheet, View } from "react-native";
 import { Modal, Text } from "react-native-paper";
 
 type Props = {
-  players: Players;
-  startNextRound: () => void;
+  gameState: GameState;
+  dispatch: GameStateDispatch;
 };
 
-export default function NextRoundModal({ players, startNextRound }: Props) {
-  const [visible, setVisible] = useState(false);
-  const showModal = () => setVisible(true);
+export default function NextRoundModal({ gameState, dispatch }: Props) {
   const hideModal = () => {
-    setVisible(false);
-    startNextRound();
+    dispatch({ type: gameState.winner ? "endGame" : "endRound" });
   };
-  const roundWinner = Object.values(players).find(
-    (player) => player.cards.length === 0 && player.phaseCompleted
+  const roundWinner = gameState.players?.find(
+    (player) => player.hand.length === 0 && player.phaseCompleted
   );
-  if (roundWinner)
+  const gameWinner = gameState.winner;
+
+  if (roundWinner || gameWinner)
     return (
       <Modal
-        visible={Boolean(roundWinner)}
+        visible={Boolean(roundWinner) || Boolean(gameWinner)}
         onDismiss={hideModal}
         contentContainerStyle={styles.modal}
       >
         <View style={styles.container}>
-          <Text>{roundWinner.name} has won the round!</Text>
-          {Object.values(players).map((player) => (
+          {gameWinner ? (
+            <Text>{gameWinner}</Text>
+          ) : (
+            <Text>{roundWinner?.name} has won the round!</Text>
+          )}
+          {gameState.players.map((player) => (
             <View key={player.id}>
               <Text>{player.name}</Text>
-              <Text>Score:{player.score + player.currentHandScore}</Text>
+              {/* 
+              modal pops up when a player runs out of cards, but before player's
+              score and phase is updated
+              */}
               <Text>
-                Player's phase:{player.phase + (player.phaseCompleted ? 1 : 0)}
+                Score:
+                {player.score + (gameWinner ? 0 : player.currentHandScore)}
+              </Text>
+              <Text>
+                Player's phase:
+                {player.phase + (player.phaseCompleted ? 1 : 0) + 1}
               </Text>
             </View>
           ))}

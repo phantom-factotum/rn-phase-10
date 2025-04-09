@@ -30,12 +30,14 @@
     "expo-status-bar": "~2.0.1",
     "expo-symbols": "~0.2.2",
     "expo-system-ui": "~4.0.8",
+    "expo-updates": "~0.27.1",
     "expo-web-browser": "~14.0.2",
     "jotai": "^2.12.1",
     "jotai-effect": "^2.0.1",
     "react": "18.3.1",
     "react-dom": "18.3.1",
     "react-native": "0.76.7",
+    "react-native-alert-async": "^1.0.5",
     "react-native-gesture-handler": "~2.20.2",
     "react-native-paper": "^5.13.1",
     "react-native-reanimated": "~3.16.1",
@@ -43,8 +45,7 @@
     "react-native-screens": "~4.4.0",
     "react-native-web": "~0.19.13",
     "react-native-webview": "13.12.5",
-    "rfdc": "^1.4.1",
-    "expo-updates": "~0.27.1"
+    "rfdc": "^1.4.1"
   },
   "devDependencies": {
     "@babel/core": "^7.25.2",

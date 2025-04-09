@@ -1,7 +1,7 @@
 import { NumberCard, SkipCard, WildCard } from "../types";
 
-const numbers = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12] as const;
-const colors = ["#d41737", "#1C5E88FF", "#358628", "#ddb138"];
+export const numbers = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12] as const;
+export const colors = ["#d41737", "#1C5E88FF", "#358628", "#ddb138"];
 
 const coloredCards = colors
   .map((color) => {

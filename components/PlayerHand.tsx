@@ -1,15 +1,14 @@
-import { PlayersDispatch } from "@/atoms/game";
-import { ActionType, PlayerMetadata } from "@/atoms/game/types";
-import PHASES from "@/constants/phases";
+import { gameStateAtom } from "@/atoms/gameState";
+import { Player } from "@/atoms/types";
 import MaterialCommunityIcons from "@expo/vector-icons/MaterialCommunityIcons";
+import { useSetAtom } from "jotai";
 import { StyleSheet, View } from "react-native";
 import { Gesture, GestureDetector } from "react-native-gesture-handler";
 import { Button, Text } from "react-native-paper";
 import { runOnJS } from "react-native-reanimated";
 import DraggableCards from "./DraggableCards";
 type Props = {
-  player: PlayerMetadata;
-  playersDispatch: PlayersDispatch;
+  player: Player;
   compactCards?: boolean;
   activePlayerId: string;
   canDraw: boolean;
@@ -20,23 +19,32 @@ type Props = {
 export default function PlayerHand({
   player,
   activePlayerId,
-  playersDispatch,
   canDiscard,
   canDraw,
   name,
 }: Props) {
+  const dispatch = useSetAtom(gameStateAtom);
   const isActivePlayer = player.id == activePlayerId;
   // Button presses were failing when nested within the Drag and drop component
   const tap = Gesture.Tap().onBegin(() => {
-    console.log("button pressed");
-    runOnJS(playersDispatch)(player.id, { type: ActionType.completePhase });
+    if (!isActivePlayer) return;
+    runOnJS(dispatch)({
+      type: "completePhase",
+    });
   });
+  const totalCards = player.phaseCompleted
+    ? player.hand.length
+    : player.hand.length +
+      player.phaseObjectiveArea.reduce(
+        (total, objectiveArea) => total + objectiveArea.cards.length,
+        0
+      );
   return (
     <View style={[styles.container, isActivePlayer && styles.isActivePlayer]}>
       <Text style={{ textAlign: "center" }}>{player.name}</Text>
       <View style={{ flexDirection: "row", justifyContent: "space-evenly" }}>
         <Text>Score:{player.score}</Text>
-        <Text>Total cards:{player.cards.length}</Text>
+        <Text>Total cards:{totalCards}</Text>
         {isActivePlayer && (
           <Text>Current card score:{player.currentHandScore}</Text>
         )}
@@ -55,39 +63,41 @@ export default function PlayerHand({
               </GestureDetector>
             )}
           <View style={styles.row}>
-            {player.phaseObjectiveArea.map(({ canComplete, cards }, index) => {
-              // where players stores cards to complete phase
-              return (
-                <View
-                  style={{ flex: 1 }}
-                  key={`${player.id}-objectiveArea-${index}`}
-                >
-                  <DraggableCards
-                    style={{
-                      flex: 1,
-                      padding: 0,
-                      margin: 0,
-                      backgroundColor: "rgb(20, 20, 20)",
-                    }}
-                    cards={cards}
-                    isDroppable={isActivePlayer || player.phaseCompleted}
-                    isDraggable={isActivePlayer && !player.phaseCompleted}
-                    dropData={{ objectiveIndex: index, id: player.id }}
-                    dragData={{ objectiveIndex: index }}
-                    id={`${player.id}-objectiveArea-${index}`}
-                    title={PHASES[player.phase].objectives[index].description}
-                  />
-                  {canComplete && !player.phaseCompleted && (
-                    <MaterialCommunityIcons
-                      style={{ position: "absolute", right: 12, top: 24 }}
-                      name="check-bold"
-                      size={24}
-                      color="green"
+            {player.phaseObjectiveArea.map(
+              ({ canComplete, cards, type, description }, index) => {
+                // where players stores cards to complete phase
+                return (
+                  <View
+                    style={{ flex: 1 }}
+                    key={`${player.id}-objectiveArea-${index}`}
+                  >
+                    <DraggableCards
+                      style={{
+                        flex: 1,
+                        padding: 0,
+                        margin: 0,
+                        backgroundColor: "rgb(20, 20, 20)",
+                      }}
+                      cards={cards}
+                      isDroppable={isActivePlayer || player.phaseCompleted}
+                      isDraggable={isActivePlayer && !player.phaseCompleted}
+                      dropData={{ objectiveIndex: index, id: player.id }}
+                      dragData={{ objectiveIndex: index }}
+                      id={`${player.id}-objectiveArea-${index}`}
+                      title={description}
                     />
-                  )}
-                </View>
-              );
-            })}
+                    {canComplete && !player.phaseCompleted && (
+                      <MaterialCommunityIcons
+                        style={{ position: "absolute", right: 12, top: 24 }}
+                        name="check-bold"
+                        size={24}
+                        color="green"
+                      />
+                    )}
+                  </View>
+                );
+              }
+            )}
           </View>
         </View>
       )}
@@ -98,7 +108,7 @@ export default function PlayerHand({
       */}
       {isActivePlayer && (
         <DraggableCards
-          cards={!isActivePlayer ? player.cards : player.hand}
+          cards={player.hand}
           title={`${name} hand`}
           isDraggable={isActivePlayer}
           isDroppable={isActivePlayer}

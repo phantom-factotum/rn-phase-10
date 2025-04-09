@@ -35,7 +35,9 @@ export const verifyPhase = (
 ) => {
   if (type == "set") {
     if (cards.length == 0) return false;
-    const groupNum = cards.find((card) => card.text != "wild") as Card;
+    const groupNum = cards.find((card) => card.text != "wild");
+    if (!groupNum) return false;
+
     const isSameCard = cards.every(
       (card) => card.text == groupNum.text || card.text == "wild"
     );
@@ -83,11 +85,11 @@ export const canHit = (
   if (type === "set") {
     if (card.text == "wild") return true;
     const firstCard = cards.find(isNonWildCard);
-    return firstCard?.text === card.text;
+    return firstCard && firstCard.text === card.text;
   } else if (type === "color") {
     if (card.text == "wild") return true;
     const firstCard = cards.find(isNonWildCard);
-    return firstCard?.color == card.color;
+    return firstCard && firstCard.color == card.color;
   } else if (type === "run") {
     const index = fromStart
       ? cards.findIndex(isNonWildCard)
