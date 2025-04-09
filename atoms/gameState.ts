@@ -59,24 +59,8 @@ export const gameStateAtom = atomWithReducer<GameState, Actions>(
         const hands = dealHand(newState);
         hands.forEach((hand, i) => {
           players[i].hand = hand;
-          if (players[i].id == "player") {
-            players[i].hand.push({
-              type: "skip",
-              value: 15,
-              color: "blue",
-              text: "skip",
-              id: "fake-skip",
-            });
-            console.log(players[i].hand.length);
-          }
         });
-        newState.drawPile.push({
-          type: "wild",
-          value: 25,
-          text: "wild",
-          id: "fake-wild-222",
-          color: "blue",
-        });
+
         return {
           ...resetState(newState),
           activePlayerId: players[0].id,
