@@ -1,13 +1,10 @@
-import type { GameState, GameStateDispatch } from "@/atoms/types";
+import { gameStateAtom } from "@/atoms/gameState";
+import { useAtom } from "jotai";
 import { StyleSheet, View } from "react-native";
 import { Modal, Text } from "react-native-paper";
 
-type Props = {
-  gameState: GameState;
-  dispatch: GameStateDispatch;
-};
-
-export default function NextRoundModal({ gameState, dispatch }: Props) {
+export default function NextRoundModal() {
+  const [gameState, dispatch] = useAtom(gameStateAtom);
   const hideModal = () => {
     dispatch({ type: gameState.winner ? "endGame" : "endRound" });
   };

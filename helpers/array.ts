@@ -1,4 +1,3 @@
-import { PlayerMetadata } from "@/atoms/game/types";
 import { Card } from "@/types";
 
 export function shuffleArray<T>(arr: Array<T>) {
@@ -38,14 +37,4 @@ export function removeCardFromArray(arr: Card[], item: Card) {
 
 export function scoreCards(arr: Card[]) {
   return arr.reduce((total, card) => total + card.value, 0);
-}
-
-export function updatePlayerAfterPhaseCompletion(player: PlayerMetadata) {
-  const phaseAreaCards = player.phaseObjectiveArea
-    .map((area) => area.cards)
-    .flat();
-  player.cards = player.cards.filter(
-    (card) => !phaseAreaCards.find((card2) => card2.id == card.id)
-  );
-  player.currentHandScore = scoreCards(player.cards);
 }

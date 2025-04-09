@@ -30,14 +30,6 @@ export type GameState = {
   players: Player[];
   winner: string | null;
 };
-export enum ActionTypes {
-  drawCard = 1,
-  discardCard,
-  startGame,
-  moveToObjectiveArea,
-  moveBetweenObjectiveAreas,
-  moveFromObjectiveArea,
-}
 
 export type Actions =
   | {
@@ -63,6 +55,7 @@ export type Actions =
       data: {
         totalPlayers: number;
         phase?: number;
+        botsIsActive?: boolean;
       };
     }
   | {

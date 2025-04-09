@@ -54,7 +54,12 @@ export const gameStateAtom = atomWithReducer<GameState, Actions>(
     if (!activePlayerId && action.type != "startGame") return state;
     switch (action.type) {
       case "startGame": {
-        const { totalPlayers, phase = 0 } = action.data;
+        const {
+          totalPlayers = 2,
+          phase = 0,
+          botsIsActive = true,
+        } = action.data;
+        newState.totalPlayers = totalPlayers;
         const players = generatePlayers(totalPlayers, phase);
         const hands = dealHand(newState);
         hands.forEach((hand, i) => {
@@ -63,6 +68,7 @@ export const gameStateAtom = atomWithReducer<GameState, Actions>(
 
         return {
           ...resetState(newState),
+          botsIsActive,
           activePlayerId: players[0].id,
           players,
         };
@@ -113,6 +119,7 @@ export const gameStateAtom = atomWithReducer<GameState, Actions>(
       case "completePhase": {
         if (!player || !player.canCompletePhase) return state;
         player.phaseCompleted = true;
+        updatePhaseObjectiveArea(player);
         return newState;
       }
       case "endRound": {
