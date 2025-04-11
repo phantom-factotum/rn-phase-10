@@ -154,9 +154,6 @@ export default function HomeScreen() {
                   <PlayerHand
                     player={player}
                     activePlayerId={activePlayerId}
-                    canDiscard={canDiscard}
-                    canDraw={canDraw}
-                    name={player.name}
                     key={player.id}
                   />
                 );

@@ -101,6 +101,7 @@ export type Actions =
       type: "sortHand";
       data: {
         type: "number" | "color";
+        id: string;
       };
     };
 type SetAtom<Args extends any[], Result> = (...args: Args) => Result;

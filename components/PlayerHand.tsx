@@ -3,36 +3,20 @@ import { Player } from "@/atoms/types";
 import MaterialCommunityIcons from "@expo/vector-icons/MaterialCommunityIcons";
 import { useSetAtom } from "jotai";
 import { StyleSheet, View } from "react-native";
-import { Gesture, GestureDetector } from "react-native-gesture-handler";
 import { Button, Text } from "react-native-paper";
-import { runOnJS } from "react-native-reanimated";
 
+import DndButton from "./DndButton";
 import DraggableCards from "./DraggableCards";
 type Props = {
   player: Player;
   compactCards?: boolean;
   activePlayerId: string;
-  canDraw: boolean;
-  canDiscard: boolean;
-  name: string;
 };
 
-export default function PlayerHand({
-  player,
-  activePlayerId,
-  canDiscard,
-  canDraw,
-  name,
-}: Props) {
+export default function PlayerHand({ player, activePlayerId }: Props) {
   const dispatch = useSetAtom(gameStateAtom);
   const isActivePlayer = player.id == activePlayerId;
   // Button presses were failing when nested within the Drag and drop component
-  const completePhaseGesture = Gesture.Tap().onBegin(() => {
-    if (!isActivePlayer) return;
-    runOnJS(dispatch)({
-      type: "completePhase",
-    });
-  });
   const totalCards = player.phaseCompleted
     ? player.hand.length
     : player.hand.length +
@@ -59,9 +43,9 @@ export default function PlayerHand({
           {isActivePlayer &&
             player.canCompletePhase &&
             !player.phaseCompleted && (
-              <GestureDetector gesture={completePhaseGesture}>
+              <DndButton onPress={() => dispatch({ type: "completePhase" })}>
                 <Button>Complete Phase</Button>
-              </GestureDetector>
+              </DndButton>
             )}
           <View style={styles.row}>
             {player.phaseObjectiveArea.map(
@@ -111,45 +95,41 @@ export default function PlayerHand({
         <View>
           <DraggableCards
             cards={player.hand}
-            title={`${name} hand`}
+            title={`${player.name} hand`}
             isDraggable={isActivePlayer}
             isDroppable={isActivePlayer}
             id={`hand-${player.id}`}
             isHidden={!isActivePlayer}
           />
           <View style={styles.floatingButtonContainer}>
-            <GestureDetector
-              gesture={Gesture.Tap().onBegin(() => {
-                runOnJS(dispatch)({
+            <DndButton
+              onPress={() => {
+                dispatch({
                   type: "sortHand",
                   data: { type: "number", id: player.id },
                 });
-              })}
+              }}
             >
-              <View collapsable={false}>
-                <MaterialCommunityIcons
-                  name="sort-numeric-ascending"
-                  size={36}
-                  color={"white"}
-                />
-              </View>
-            </GestureDetector>
-            <GestureDetector
-              gesture={Gesture.Tap().onBegin(() => {
-                runOnJS(dispatch)({
+              <MaterialCommunityIcons
+                name="sort-numeric-ascending"
+                size={36}
+                color={"white"}
+              />
+            </DndButton>
+            <DndButton
+              onPress={() => {
+                dispatch({
                   type: "sortHand",
                   data: { type: "color", id: player.id },
                 });
-              })}
+              }}
             >
-              <View collapsable={false}>
-                <MaterialCommunityIcons
-                  name="sort-alphabetical-ascending"
-                  size={36}
-                  color={"white"}
-                />
-              </View>
-            </GestureDetector>
+              <MaterialCommunityIcons
+                name="sort-alphabetical-ascending"
+                size={36}
+                color={"white"}
+              />
+            </DndButton>
           </View>
         </View>
       )}

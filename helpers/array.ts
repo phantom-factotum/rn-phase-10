@@ -49,13 +49,13 @@ export const getRandomInt = (min = 0, max = 1) => {
   return Math.floor(Math.random() * range) + min;
 };
 
-const getCardSortValue = (card: Card) => {
+const getCardNumber = (card: Card) => {
   if (card.type == "wild") return 13;
   if (card.type == "skip") return 14;
   return parseInt(card.text, 10);
 };
 const sortByNumber = (a: Card, b: Card) => {
-  return getCardSortValue(a) - getCardSortValue(b);
+  return getCardNumber(a) - getCardNumber(b);
 };
 const getColorStr = (card: Card) => {
   if (card.type == "wild") return "yyyy";
