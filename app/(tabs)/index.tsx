@@ -8,10 +8,10 @@ import useOnDragEnd from "@/hooks/useOnDragEnd";
 // import useGameHandler, { Players } from "@/hooks/useGameHandler";
 import { DndProvider, Draggable, Droppable } from "@mgcrea/react-native-dnd";
 import { useAtom } from "jotai";
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { Dimensions, StyleSheet, View } from "react-native";
 import { ScrollView } from "react-native-gesture-handler";
-import { Button, Portal, Text } from "react-native-paper";
+import { Button, Portal, Text, useTheme } from "react-native-paper";
 import { useSharedValue } from "react-native-reanimated";
 import { SafeAreaView } from "react-native-safe-area-context";
 
@@ -37,6 +37,7 @@ export default function HomeScreen() {
   const [initialPhase, setInitialPhase] = useState(0);
   const [botsIsActive, setBotsIsActive] = useState(true);
   const [botIsPlaying, setBotIsPlaying] = useState(false);
+  const theme = useTheme();
   const onDragEnd = useOnDragEnd(dragEndX, {
     showFailedDrops,
     onBotTurnStart: () => {
@@ -48,7 +49,8 @@ export default function HomeScreen() {
       setBotIsPlaying(false);
     },
   });
-  useEffect(() => {}, []);
+  const topDiscardPile =
+    gameState.discardPile[gameState.discardPile.length - 1];
   return (
     <SafeAreaView style={styles.container}>
       {!activePlayerId && (
@@ -124,13 +126,14 @@ export default function HomeScreen() {
                 canDraw={canDraw}
               />
             </Draggable>
-            <Draggable id="takeFromDiscardPile" disabled={!canDraw}>
+            <Draggable
+              id="takeFromDiscardPile"
+              disabled={!canDraw || topDiscardPile?.type === "skip"}
+            >
               <Droppable id="addToPile" disabled={!canDiscard}>
                 <DiscardPile
                   style={canDiscard ? styles.active : undefined}
-                  lastDiscarded={
-                    gameState.discardPile[gameState.discardPile.length - 1]
-                  }
+                  lastDiscarded={topDiscardPile}
                   drawCard={() =>
                     dispatch({
                       type: "drawCard",
@@ -163,8 +166,15 @@ export default function HomeScreen() {
         </DndProvider>
       )}
       {botIsPlaying && (
-        <View style={styles.waiting}>
-          <Text>Computer is playing...</Text>
+        <View
+          style={[
+            styles.waiting,
+            { backgroundColor: theme.colors.secondaryContainer },
+          ]}
+        >
+          <View style={{ opacity: 0.6 }}>
+            <Text>Computer is playing...</Text>
+          </View>
         </View>
       )}
       <Portal>
@@ -206,7 +216,9 @@ const styles = StyleSheet.create({
     position: "absolute",
     width: "100%",
     height: "100%",
-    backgroundColor: "green",
+    alignItems: "center",
+    justifyContent: "center",
+    // backgroundColor: "green",
     opacity: 0.6,
   },
 });

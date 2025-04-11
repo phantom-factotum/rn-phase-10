@@ -185,7 +185,6 @@ export const gameStateAtom = atomWithReducer<GameState, Actions>(
       }
       case "sortHand": {
         const { type, id } = action.data;
-        console.log("sorting hand");
         const player = newState.players.find((p) => p.id == id);
         if (!player) return state;
         player.hand = sortCards(player.hand, type);

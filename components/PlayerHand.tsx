@@ -3,7 +3,7 @@ import { Player } from "@/atoms/types";
 import MaterialCommunityIcons from "@expo/vector-icons/MaterialCommunityIcons";
 import { useSetAtom } from "jotai";
 import { StyleSheet, View } from "react-native";
-import { Button, Text } from "react-native-paper";
+import { Button, Text, useTheme } from "react-native-paper";
 
 import DndButton from "./DndButton";
 import DraggableCards from "./DraggableCards";
@@ -16,6 +16,7 @@ type Props = {
 export default function PlayerHand({ player, activePlayerId }: Props) {
   const dispatch = useSetAtom(gameStateAtom);
   const isActivePlayer = player.id == activePlayerId;
+  const theme = useTheme();
   // Button presses were failing when nested within the Drag and drop component
   const totalCards = player.phaseCompleted
     ? player.hand.length
@@ -102,6 +103,7 @@ export default function PlayerHand({ player, activePlayerId }: Props) {
             isHidden={!isActivePlayer}
           />
           <View style={styles.floatingButtonContainer}>
+            <Text variant="bodyLarge">Sort by:</Text>
             <DndButton
               onPress={() => {
                 dispatch({
@@ -113,7 +115,7 @@ export default function PlayerHand({ player, activePlayerId }: Props) {
               <MaterialCommunityIcons
                 name="sort-numeric-ascending"
                 size={36}
-                color={"white"}
+                color={theme.colors.inversePrimary}
               />
             </DndButton>
             <DndButton
@@ -125,9 +127,9 @@ export default function PlayerHand({ player, activePlayerId }: Props) {
               }}
             >
               <MaterialCommunityIcons
-                name="sort-alphabetical-ascending"
+                name="format-color-fill"
                 size={36}
-                color={"white"}
+                color={theme.colors.inversePrimary}
               />
             </DndButton>
           </View>
