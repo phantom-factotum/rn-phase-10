@@ -8,10 +8,10 @@ import useOnDragEnd from "@/hooks/useOnDragEnd";
 // import useGameHandler, { Players } from "@/hooks/useGameHandler";
 import { DndProvider, Draggable, Droppable } from "@mgcrea/react-native-dnd";
 import { useAtom } from "jotai";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Dimensions, StyleSheet, View } from "react-native";
 import { ScrollView } from "react-native-gesture-handler";
-import { Button, Portal } from "react-native-paper";
+import { Button, Portal, Text } from "react-native-paper";
 import { useSharedValue } from "react-native-reanimated";
 import { SafeAreaView } from "react-native-safe-area-context";
 
@@ -35,7 +35,20 @@ export default function HomeScreen() {
   const { activePlayerId, players, canDiscard, canDraw } = gameState;
   const [totalPlayers, setTotalPlayers] = useState(2);
   const [initialPhase, setInitialPhase] = useState(0);
-  const onDragEnd = useOnDragEnd(dragEndX, showFailedDrops);
+  const [botsIsActive, setBotsIsActive] = useState(true);
+  const [botIsPlaying, setBotIsPlaying] = useState(false);
+  const onDragEnd = useOnDragEnd(dragEndX, {
+    showFailedDrops,
+    onBotTurnStart: () => {
+      console.log("setting bot is playing to true");
+      setBotIsPlaying(true);
+    },
+    onBotTurnEnd: () => {
+      console.log("setting bot is playing to false");
+      setBotIsPlaying(false);
+    },
+  });
+  useEffect(() => {}, []);
   return (
     <SafeAreaView style={styles.container}>
       {!activePlayerId && (
@@ -65,6 +78,7 @@ export default function HomeScreen() {
                 data: {
                   totalPlayers,
                   phase: initialPhase,
+                  botsIsActive,
                 },
               })
             }
@@ -151,6 +165,11 @@ export default function HomeScreen() {
           </View>
         </DndProvider>
       )}
+      {botIsPlaying && (
+        <View style={styles.waiting}>
+          <Text>Computer is playing...</Text>
+        </View>
+      )}
       <Portal>
         <NextRoundModal />
       </Portal>
@@ -185,5 +204,12 @@ const styles = StyleSheet.create({
   center: {
     alignItems: "center",
     // justifyContent: "center",
+  },
+  waiting: {
+    position: "absolute",
+    width: "100%",
+    height: "100%",
+    backgroundColor: "green",
+    opacity: 0.6,
   },
 });

@@ -38,3 +38,34 @@ export function removeCardFromArray(arr: Card[], item: Card) {
 export function scoreCards(arr: Card[]) {
   return arr.reduce((total, card) => total + card.value, 0);
 }
+
+export function getRandomItem<T>(arr: T[]) {
+  const index = getRandomInt(0, arr.length);
+  return arr[index];
+}
+
+export const getRandomInt = (min = 0, max = 1) => {
+  const range = max - min;
+  return Math.floor(Math.random() * range) + min;
+};
+
+const getCardSortValue = (card: Card) => {
+  if (card.type == "wild") return 13;
+  if (card.type == "skip") return 14;
+  return parseInt(card.text, 10);
+};
+const sortByNumber = (a: Card, b: Card) => {
+  return getCardSortValue(a) - getCardSortValue(b);
+};
+const getColorStr = (card: Card) => {
+  if (card.type == "wild") return "yyyy";
+  if (card.type == "skip") return "zzzz";
+  return card.color;
+};
+const sortByColor = (a: Card, b: Card) => {
+  return getColorStr(a).localeCompare(getColorStr(b));
+};
+export const sortCards = (cards: Card[], sortBy: "number" | "color") => {
+  const copy = [...cards];
+  return copy.sort(sortBy == "number" ? sortByNumber : sortByColor);
+};

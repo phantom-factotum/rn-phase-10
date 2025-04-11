@@ -6,6 +6,7 @@ import { StyleSheet, View } from "react-native";
 import { Gesture, GestureDetector } from "react-native-gesture-handler";
 import { Button, Text } from "react-native-paper";
 import { runOnJS } from "react-native-reanimated";
+
 import DraggableCards from "./DraggableCards";
 type Props = {
   player: Player;
@@ -26,7 +27,7 @@ export default function PlayerHand({
   const dispatch = useSetAtom(gameStateAtom);
   const isActivePlayer = player.id == activePlayerId;
   // Button presses were failing when nested within the Drag and drop component
-  const tap = Gesture.Tap().onBegin(() => {
+  const completePhaseGesture = Gesture.Tap().onBegin(() => {
     if (!isActivePlayer) return;
     runOnJS(dispatch)({
       type: "completePhase",
@@ -58,7 +59,7 @@ export default function PlayerHand({
           {isActivePlayer &&
             player.canCompletePhase &&
             !player.phaseCompleted && (
-              <GestureDetector gesture={tap}>
+              <GestureDetector gesture={completePhaseGesture}>
                 <Button>Complete Phase</Button>
               </GestureDetector>
             )}
@@ -107,14 +108,50 @@ export default function PlayerHand({
       (unless skip card is played, where this info is revealed)
       */}
       {isActivePlayer && (
-        <DraggableCards
-          cards={player.hand}
-          title={`${name} hand`}
-          isDraggable={isActivePlayer}
-          isDroppable={isActivePlayer}
-          id={`hand-${player.id}`}
-          isHidden={!isActivePlayer}
-        />
+        <View>
+          <DraggableCards
+            cards={player.hand}
+            title={`${name} hand`}
+            isDraggable={isActivePlayer}
+            isDroppable={isActivePlayer}
+            id={`hand-${player.id}`}
+            isHidden={!isActivePlayer}
+          />
+          <View style={styles.floatingButtonContainer}>
+            <GestureDetector
+              gesture={Gesture.Tap().onBegin(() => {
+                runOnJS(dispatch)({
+                  type: "sortHand",
+                  data: { type: "number", id: player.id },
+                });
+              })}
+            >
+              <View collapsable={false}>
+                <MaterialCommunityIcons
+                  name="sort-numeric-ascending"
+                  size={36}
+                  color={"white"}
+                />
+              </View>
+            </GestureDetector>
+            <GestureDetector
+              gesture={Gesture.Tap().onBegin(() => {
+                runOnJS(dispatch)({
+                  type: "sortHand",
+                  data: { type: "color", id: player.id },
+                });
+              })}
+            >
+              <View collapsable={false}>
+                <MaterialCommunityIcons
+                  name="sort-alphabetical-ascending"
+                  size={36}
+                  color={"white"}
+                />
+              </View>
+            </GestureDetector>
+          </View>
+        </View>
       )}
     </View>
   );
@@ -136,5 +173,17 @@ const styles = StyleSheet.create({
     width: "100%",
     flexDirection: "row",
     padding: 5,
+  },
+  floatingButtonContainer: {
+    alignItems: "flex-end",
+    alignSelf: "flex-end",
+    justifyContent: "flex-end",
+    position: "absolute",
+    // backgroundColor: "pink",
+    // width: 100,
+    // height: 100,
+    right: 0,
+    bottom: 20,
+    zIndex: 30,
   },
 });

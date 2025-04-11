@@ -89,4 +89,14 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: "blue",
   },
+  buttonColumn: {
+    position: "absolute",
+    backgroundColor: "pink",
+    right: 60,
+    alignSelf: "flex-end",
+    height: 60,
+    width: 60,
+    flex: 1,
+    zIndex: 10,
+  },
 });

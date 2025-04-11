@@ -1,13 +1,18 @@
 import deck from "@/constants/deck";
-import PHASES, { canHit } from "@/constants/phases";
-import { removeCardFromArray, scoreCards, shuffleArray } from "@/helpers/array";
+import PHASES from "@/constants/phases";
+import { scoreCards, shuffleArray, sortCards } from "@/helpers/array";
 import {
+  completePhase,
   dealHand,
   discardCard,
   drawCard,
+  hitObjective,
+  moveBetweenObjectiveAreas,
+  moveFromObjectiveArea,
+  moveToObjectiveArea,
   scorePlayerCards,
 } from "@/helpers/game";
-import { generatePlayers, updatePhaseObjectiveArea } from "@/helpers/player";
+import { generatePlayers } from "@/helpers/player";
 import { Card } from "@/types";
 import { atomWithReducer } from "jotai/utils";
 import rfdc from "rfdc";
@@ -31,6 +36,8 @@ const initialState: GameState = {
   roundEnded: true,
   players: initialPlayers,
   winner: null,
+  botsIsActive: false,
+  botIsPlaying: false,
 };
 const resetState = (state: GameState) => {
   return {
@@ -81,49 +88,33 @@ export const gameStateAtom = atomWithReducer<GameState, Actions>(
       }
       case "discardCard": {
         if (!canDiscard) return state;
-        const { card, targetId } = action.data;
-        const newState = deepclone(state);
-        if (targetId) {
-          newState.skipQueue.push(targetId);
-        }
-        return discardCard(newState, card);
+        // const newState = deepclone(state);
+        discardCard(newState, action.data);
+        return newState;
       }
 
       case "moveBetweenObjectiveAreas": {
-        const { fromIndex, toIndex, card } = action.data;
         if (!player) return state;
-        const toObjective = player.phaseObjectiveArea[toIndex];
-        const fromObjective = player.phaseObjectiveArea[fromIndex];
-        toObjective.cards.push(card);
-        fromObjective.cards = removeCardFromArray(fromObjective.cards, card);
-        updatePhaseObjectiveArea(player);
+        moveBetweenObjectiveAreas(player, action.data);
         return newState;
       }
       case "moveToObjectiveArea": {
-        const { objectiveIndex, card } = action.data;
         if (!player) return state;
-        player.phaseObjectiveArea[objectiveIndex].cards.push(card);
-        player.hand = removeCardFromArray(player.hand, card);
-        updatePhaseObjectiveArea(player);
+        moveToObjectiveArea(player, action.data);
         return newState;
       }
       case "moveFromObjectiveArea": {
-        const { objectiveIndex, card } = action.data;
         if (!player) return state;
-        const objectiveArea = player.phaseObjectiveArea[objectiveIndex];
-        objectiveArea.cards = removeCardFromArray(objectiveArea.cards, card);
-        player.hand.push(card);
-        updatePhaseObjectiveArea(player);
+        moveFromObjectiveArea(player, action.data);
         return newState;
       }
       case "completePhase": {
         if (!player || !player.canCompletePhase) return state;
-        player.phaseCompleted = true;
-        updatePhaseObjectiveArea(player);
+        completePhase(player);
         return newState;
       }
       case "endRound": {
-        const newState = deepclone(state);
+        // const newState = deepclone(state);
         newState.roundsPlayed++;
         newState.skipQueue = [];
         const hands = dealHand(newState);
@@ -160,7 +151,6 @@ export const gameStateAtom = atomWithReducer<GameState, Actions>(
           if (filteredPlayers.length == 1)
             newState.winner = generateWinnerMessage(filteredPlayers);
           else {
-            let hasTie = false;
             // get lowest score
             const bestScore = filteredPlayers.reduce((score, player) => {
               return Math.min(score, player.score);
@@ -177,23 +167,7 @@ export const gameStateAtom = atomWithReducer<GameState, Actions>(
       case "hitObjective": {
         if (!player || !player.phaseCompleted) return state;
         const { targetId, objectiveIndex, card, fromStart } = action.data;
-        const hitId = targetId || player.id;
-        const targetPlayer = players.find(
-          (player) => player.id == hitId && player.phaseCompleted
-        );
-        if (!targetPlayer) return state;
-        const targetObjective = targetPlayer.phaseObjectiveArea[objectiveIndex];
-        if (
-          canHit(targetObjective.type, targetObjective.cards, card, fromStart)
-        ) {
-          if (fromStart) {
-            targetObjective.cards.unshift(card);
-          } else {
-            targetObjective.cards.push(card);
-          }
-          player.hand = removeCardFromArray(player.hand, card);
-          player.currentHandScore = scorePlayerCards(player);
-        }
+        hitObjective(player, newState.players, action.data);
         return newState;
       }
       case "endGame": {
@@ -208,6 +182,14 @@ export const gameStateAtom = atomWithReducer<GameState, Actions>(
           drawPile: [],
           discardPile: [],
         };
+      }
+      case "sortHand": {
+        const { type, id } = action.data;
+        console.log("sorting hand");
+        const player = newState.players.find((p) => p.id == id);
+        if (!player) return state;
+        player.hand = sortCards(player.hand, type);
+        return newState;
       }
       default: {
         return state;

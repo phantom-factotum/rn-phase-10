@@ -29,6 +29,8 @@ export type GameState = {
   gameEnded: boolean;
   players: Player[];
   winner: string | null;
+  botsIsActive: boolean;
+  botIsPlaying: boolean;
 };
 
 export type Actions =
@@ -41,6 +43,8 @@ export type Actions =
       data: {
         card: Card;
         targetId?: undefined;
+        onBotTurnStart?: () => void;
+        onBotTurnEnd?: () => void;
       };
     }
   | {
@@ -48,6 +52,8 @@ export type Actions =
       data: {
         card: SkipCard;
         targetId: string;
+        onBotTurnStart?: () => void;
+        onBotTurnEnd?: () => void;
       };
     }
   | {
@@ -83,6 +89,18 @@ export type Actions =
         objectiveIndex: number;
         card: Card;
         fromStart?: boolean;
+      };
+    }
+  | {
+      type: "handleBot";
+      data: {
+        targetId: string;
+      };
+    }
+  | {
+      type: "sortHand";
+      data: {
+        type: "number" | "color";
       };
     };
 type SetAtom<Args extends any[], Result> = (...args: Args) => Result;

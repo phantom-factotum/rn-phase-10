@@ -8,11 +8,16 @@ import { runOnJS, SharedValue } from "react-native-reanimated";
 
 export default function useOnDragEnd(
   dragEndX: SharedValue<number>,
-  showFailedDrops?: boolean
+  config: {
+    showFailedDrops?: boolean;
+    onBotTurnStart?: () => void;
+    onBotTurnEnd?: () => void;
+  }
 ) {
   const { width } = useWindowDimensions();
   const [gameState, dispatch] = useAtom(gameStateAtom);
   const { activePlayerId, players } = gameState;
+  const { showFailedDrops, onBotTurnStart, onBotTurnEnd } = config;
   // This feels overloaded but the react-native-dnd Grid/Stack components
   // could not provide this functionality
   // NOTE: DndProvider crashes app if callback functions arent a worklet or if
@@ -40,9 +45,19 @@ export default function useOnDragEnd(
     else if (overId === "addToPile" && !activeId.includes("objectiveArea")) {
       const card: Card = active.data.value.card;
       if (card.type == "skip") {
-        runOnJS(skipThenDiscard)(dispatch, players, activePlayerId, card);
+        runOnJS(skipThenDiscard)(
+          dispatch,
+          players,
+          activePlayerId,
+          card,
+          onBotTurnStart,
+          onBotTurnEnd
+        );
       } else {
-        runOnJS(dispatch)({ type: "discardCard", data: { card } });
+        runOnJS(dispatch)({
+          type: "discardCard",
+          data: { card, onBotTurnStart, onBotTurnEnd },
+        });
       }
     } else if (activeId === overId) {
       return;
