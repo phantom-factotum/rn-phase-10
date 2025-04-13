@@ -34,7 +34,9 @@ export function countDuplicates(cards: Card[], key: keyof Card) {
 export function removeCardFromArray(arr: Card[], item: Card) {
   return arr.filter((card2) => card2.id !== item.id);
 }
-
+export function removeCardsFromArray(arr: Card[], cards: Card[]) {
+  return arr.filter((card) => !cards.find((card2) => card2.id == card.id));
+}
 export function scoreCards(arr: Card[]) {
   return arr.reduce((total, card) => total + card.value, 0);
 }
@@ -68,4 +70,63 @@ const sortByColor = (a: Card, b: Card) => {
 export const sortCards = (cards: Card[], sortBy: "number" | "color") => {
   const copy = [...cards];
   return copy.sort(sortBy == "number" ? sortByNumber : sortByColor);
+};
+
+export const groupBySets = (hand: Card[]) => {
+  return hand
+    .filter((card) => card.type !== "skip" && card.type !== "wild")
+    .reduce((acc, card) => {
+      const index = acc.findIndex((set) => set[0].text == card.text);
+      if (index >= 0) {
+        acc[index].push(card);
+      } else acc.push([card]);
+      return acc;
+    }, [] as Card[][])
+    .filter((set) => set.length > 1)
+    .sort((a, b) => b.length - a.length);
+};
+
+export const groupByRuns = (hand: Card[]) => {
+  const totalWilds = hand.filter((card) => card.type == "wild").length;
+  let remainingWilds = 0;
+  return [...hand]
+    .sort(sortByNumber)
+    .filter((card) => card.type !== "skip" && card.type !== "wild")
+    .reduce(
+      (acc, card) => {
+        const index = acc.length - 1;
+        const currentRun = acc[index];
+        const lastCard = currentRun[currentRun.length - 1];
+        if (!lastCard) {
+          acc[index] = [card];
+          return acc;
+        }
+        const lastNumber = parseInt(lastCard.text, 10);
+        const currentNumber = parseInt(card.text, 10);
+        const diff = currentNumber - lastNumber;
+        if (diff < 2) {
+          currentRun.push(card);
+        } else acc.push([card]);
+        return acc;
+      },
+      [[]] as Card[][]
+    );
+};
+
+export const groupByColors = (hand: Card[]) => {
+  return hand
+    .filter((card) => card.type !== "skip" && card.type !== "wild")
+    .reduce((acc, card) => {
+      const index = acc.findIndex((group) => group[0].color == card.color);
+      if (index >= 0) {
+        acc[index].push(card);
+      } else acc.push([card]);
+      return acc;
+    }, [] as Card[][]);
+};
+
+export const groupBy = (hand: Card[], type: "run" | "set" | "color") => {
+  if (type == "color") return groupByColors(hand);
+  else if (type == "set") return groupBySets(hand);
+  return groupByRuns(hand);
 };

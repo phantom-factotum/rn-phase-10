@@ -1,11 +1,19 @@
 import { GameState, GameStateDispatch, Player } from "@/atoms/types";
 import deck from "@/constants/deck";
-import { canHit } from "@/constants/phases";
+import { canHit, verifyPhase } from "@/constants/phases";
 import { Card, SkipCard } from "@/types";
 import AsyncAlert from "react-native-alert-async";
 import rfdc from "rfdc";
-import { getRandomItem, removeCardFromArray, shuffleArray } from "./array";
-import { updatePhaseObjectiveArea } from "./player";
+import {
+  removeCardFromArray,
+  removeCardsFromArray,
+  shuffleArray,
+} from "./array";
+import {
+  getAvailableCards,
+  guessBestPlay,
+  updatePhaseObjectiveArea,
+} from "./player";
 const deepclone = rfdc();
 
 export function drawCard(state: GameState, isFromDiscard?: boolean) {
@@ -50,7 +58,6 @@ function startNextTurn(
   gameState.activePlayerId = gameState.players[nextIndex].id;
   gameState.canDiscard = false;
   gameState.canDraw = true;
-  console.log("next player:", gameState.activePlayerId);
   if (gameState.botsIsActive && gameState.activePlayerId !== "player") {
     onBotTurnStart?.();
     return automateTurn(gameState, onBotTurnEnd);
@@ -61,56 +68,74 @@ function startNextTurn(
 }
 
 function automateTurn(state: GameState, onBotTurnEnd?: () => void) {
-  console.log("playing for npc");
   const topDiscardPile = state.discardPile[state.discardPile.length - 1];
-  const deckCard = state.drawPile[state.drawPile.length - 1];
-  console.log("discardpile:", topDiscardPile.text);
-  console.log("drawpile:", deckCard.text);
-  // first decide if bot should draw from deck or discard pile
   const canDrawFromDiscard = !topDiscardPile || topDiscardPile.type !== "skip";
-  console.log(
-    canDrawFromDiscard ? "drawing from discard pile" : "drawing from deck"
-  );
-  const cardDrew = drawCard(state, canDrawFromDiscard)!;
-  const player = state.players.find(
-    (player) => player.id === state.activePlayerId
-  )!;
-  console.log("bot drew", cardDrew.text);
 
-  const phaseAreaCards = player.phaseCompleted
-    ? []
-    : player.phaseObjectiveArea.map((o) => o.cards).flat();
-  let remainingCards = phaseAreaCards.concat(player.hand);
-  // prioritize first objective
-  player.phaseObjectiveArea.reduce((acc, objectiveArea, index) => {
-    if (!acc[index]) acc[index] = [];
-    const { type, objectiveLength } = objectiveArea;
-    if (type == "set") {
-    }
-    return acc;
-  }, [] as Card[][]);
+  let cardDrew: Card;
+  let player = state.players.find(
+    (player) => player.id == state.activePlayerId
+  )!;
+  const allCards = getAvailableCards(player);
+
+  // if cant draw from discard draw from deck
+  if (!canDrawFromDiscard) {
+    cardDrew = drawCard(state, canDrawFromDiscard)!;
+  } else {
+    // decide if bot should draw from deck or discard pile
+    const newObjectiveArea = guessBestPlay(
+      allCards.concat(topDiscardPile),
+      player.phase
+    );
+    const discardedCardUsed = !!newObjectiveArea.find((cards) =>
+      cards.find((card) => card.id == topDiscardPile.id)
+    );
+    // drawCard does useful things like refilling the deck when it runs out of cards
+    cardDrew = drawCard(state, discardedCardUsed)!;
+  }
+  // update player
+  player = state.players.find((player) => player.id === state.activePlayerId)!;
+  console.log("bot drew", cardDrew.text);
   // add cards to objectiveArea
-  // discard skip or least useful card
-  let card = getRandomItem(player.hand);
+  const newObjectiveArea = guessBestPlay(player.hand, player.phase);
+  console.log(
+    "bot will set phaseObjectiveArea to ",
+    newObjectiveArea.map((cards) => cards.map((card) => card.text)).join(", ")
+  );
+  // TODO : guestBestPlay doesnt handle wild usage
+  player.phaseObjectiveArea = player.phaseObjectiveArea.map((o, index) => {
+    const cards = newObjectiveArea[index];
+    return {
+      ...o,
+      cards,
+      canComplete: verifyPhase(o.type, cards, o.objectiveLength),
+    };
+  });
+  player.hand = removeCardsFromArray(player.hand, newObjectiveArea.flat());
+  // sort by card value while ignoring wilds
+  const discardableCards = player.hand
+    .filter((card) => card.type !== "wild")
+    .sort((a, b) => {
+      return b.value - a.value;
+    });
+  const cardToDiscard = discardableCards[0];
   let targetId: string | undefined;
-  const skipCard = player.hand.find((card) => card.type == "skip");
-  // if skipcard found, skip player with the highest score,
-  // or the lowest card count
-  if (skipCard) {
-    card = skipCard;
-    const skippablePlayers = state.players.filter((p) => p.id !== player.id);
-    const targetPlayer = skippablePlayers.reduce((target, player) => {
-      return target.score < player.score ? target : player;
-    }, skippablePlayers[0]);
-    console.log(player.id, "will skip", targetPlayer.id);
+  if (cardToDiscard.type == "skip") {
+    // target player with highest score
+    const targetPlayer = state.players
+      .filter((p) => p.id !== player.id)
+      .reduce(
+        (target, player) => {
+          if (!target) return player;
+          if (player.score < target.score) return player;
+        },
+        undefined as Player | undefined
+      )!;
     targetId = targetPlayer.id;
   }
-  console.log("discarding", card.text);
-  player.hand = removeCardFromArray(player.hand, card);
-  state.discardPile.push(card);
   setTimeout(() => {
     onBotTurnEnd?.();
-    startNextTurn(state);
+    discardCard(state, { card: cardToDiscard, targetId });
+    // startNextTurn(state);
   }, 5000);
 }
 export function discardCard(

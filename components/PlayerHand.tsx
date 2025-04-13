@@ -5,6 +5,8 @@ import { useSetAtom } from "jotai";
 import { StyleSheet, View } from "react-native";
 import { Button, Text, useTheme } from "react-native-paper";
 
+import { groupByRuns, groupBySets } from "@/helpers/array";
+import { useEffect } from "react";
 import DndButton from "./DndButton";
 import DraggableCards from "./DraggableCards";
 type Props = {
@@ -25,6 +27,21 @@ export default function PlayerHand({ player, activePlayerId }: Props) {
         (total, objectiveArea) => total + objectiveArea.cards.length,
         0
       );
+  useEffect(() => {
+    const possibleSets = groupBySets(player.hand);
+    const possibleRuns = groupByRuns(player.hand);
+    console.group();
+    console.log("playerId:", player.id);
+    console.log("Runs:");
+    console.log(
+      possibleRuns.map((runs) => runs.map((card) => card.text).join(","))
+    );
+    console.log("Sets:");
+    console.log(
+      possibleSets.map((runs) => runs.map((card) => card.text).join(","))
+    );
+    console.groupEnd();
+  }, [activePlayerId, player]);
   return (
     <View style={[styles.container, isActivePlayer && styles.isActivePlayer]}>
       <Text style={{ textAlign: "center" }}>{player.name}</Text>

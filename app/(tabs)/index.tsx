@@ -41,11 +41,9 @@ export default function HomeScreen() {
   const onDragEnd = useOnDragEnd(dragEndX, {
     showFailedDrops,
     onBotTurnStart: () => {
-      console.log("setting bot is playing to true");
       setBotIsPlaying(true);
     },
     onBotTurnEnd: () => {
-      console.log("setting bot is playing to false");
       setBotIsPlaying(false);
     },
   });
