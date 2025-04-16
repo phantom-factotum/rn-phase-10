@@ -11,6 +11,7 @@ import {
   moveFromObjectiveArea,
   moveToObjectiveArea,
   scorePlayerCards,
+  startNextTurn,
 } from "@/helpers/game";
 import { generatePlayers } from "@/helpers/player";
 import { Card } from "@/types";
@@ -161,11 +162,10 @@ export const gameStateAtom = atomWithReducer<GameState, Actions>(
             newState.winner = generateWinnerMessage(winners);
           }
         }
-        return newState;
+        return startNextTurn(newState);
       }
       case "hitObjective": {
         if (!player || !player.phaseCompleted) return state;
-        const { targetId, objectiveIndex, card, fromStart } = action.data;
         hitObjective(player, newState.players, action.data);
         return newState;
       }

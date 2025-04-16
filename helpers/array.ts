@@ -1,3 +1,4 @@
+import { canHit } from "@/constants/phases";
 import { Card } from "@/types";
 
 export function shuffleArray<T>(arr: Array<T>) {
@@ -35,7 +36,11 @@ export function removeCardFromArray(arr: Card[], item: Card) {
   return arr.filter((card2) => card2.id !== item.id);
 }
 export function removeCardsFromArray(arr: Card[], cards: Card[]) {
-  return arr.filter((card) => !cards.find((card2) => card2.id == card.id));
+  let remainingCards = [...arr];
+  cards.forEach((card) => {
+    remainingCards = removeCardFromArray(remainingCards, card);
+  });
+  return remainingCards;
 }
 export function scoreCards(arr: Card[]) {
   return arr.reduce((total, card) => total + card.value, 0);
@@ -102,66 +107,108 @@ export const groupBySets = (hand: Card[], len: number) => {
   return groups.sort((a, b) => b.length - a.length);
 };
 
-const getWildCardValue = (wildCard: Card, cards: Card[]) => {
-  const index = cards.findIndex((card) => card.id === wildCard.id);
-  const firstNumberIndex = cards.findLastIndex(
-    (card, i) => card.type == "number" && i < index
+export const findHit = (run: Card[], hand: Card[]) => {
+  return findEndHit(run, hand) || findFrontHit(run, hand);
+};
+
+export const findEndHit = (run: Card[], hand: Card[]) => {
+  return hand.find((card) => canHit("run", run, card, false));
+};
+export const findFrontHit = (run: Card[], hand: Card[]) => {
+  return hand.find((card) => canHit("run", run, card, true));
+};
+
+export const groupByRuns2 = (hand: Card[]): Card[][] => {
+  const runs: Card[][] = [];
+  hand.sort(sortByNumber).forEach((card) => {
+    let remainingCards = removeCardFromArray(hand, card);
+    if (!runs[runs.length - 1]) {
+      runs.push([card]);
+    }
+    const currentRun = runs[runs.length - 1];
+
+    while (findHit(currentRun, remainingCards)) {
+      const hit = findHit(currentRun, remainingCards)!;
+      remainingCards = removeCardFromArray(currentRun, hit);
+      currentRun.push(hit);
+    }
+  });
+
+  console.log(
+    "cards:",
+    hand
+      .sort(sortByNumber)
+      .map((card) => card.text)
+      .join(",")
   );
-  if (firstNumberIndex < 0) return -1;
-  const firstNumber = parseInt(cards[firstNumberIndex].text, 10);
-  return firstNumberIndex - index + firstNumber;
+  console.log(
+    "runs:",
+    runs.map((cards) => cards.map((card) => card.text).join(","))
+  );
+  return runs.sort((a, b) => b.length - a.length);
 };
 
 export const groupByRuns = (hand: Card[]) => {
-  let wildCards = hand.filter((card) => card.type == "wild");
+  const wildCards = hand.filter((card) => card.type == "wild");
   const runs = [...hand]
-    .sort(sortByNumber)
     .filter((card) => card.type !== "skip")
+    .sort(sortByNumber)
     .reduce(
       (acc, card: Card) => {
-        if (card.type == "wild") return acc;
         if (!acc) {
           return [[card]];
         }
-        // wilds will be used when there are gaps
-        const index = acc.length - 1;
-        const currentRun = acc[index];
-        const lastCard = currentRun[currentRun.length - 1];
-        if (!lastCard) {
-          console.log(currentRun.map((card) => card.text));
-          return acc;
+        const currentRun = acc[acc.length - 1];
+        const canHitFromEnd = canHit("run", currentRun, card);
+        const canHitFromStart = canHit("run", currentRun, card, true);
+        // try to run from end
+        if (canHitFromEnd) {
+          currentRun.push(card);
         }
-        const lastNumber =
-          lastCard.type == "wild"
-            ? getWildCardValue(card, currentRun)
-            : parseInt(lastCard.text, 10);
-
-        const currentNumber = parseInt(card.text, 10);
-        const diff = currentNumber - lastNumber;
-        console.log(
-          `${lastCard.text} has been valued at ${lastNumber}. ${card.text} has been valued at ${currentNumber}. There is a diff of ${diff}`
-        );
-        if (diff == 0) {
-          acc.push([card]);
-          return acc;
-        } else if (diff == 1) {
-          currentRun.push(card);
-        } else if (diff <= wildCards.length) {
-          for (let i = 0; i < diff; i++) {
-            const wildCard = wildCards.pop()!;
-            currentRun.push(wildCard);
+        // try to hit run from start
+        else if (canHitFromStart) {
+          currentRun.unshift(card);
+        }
+        // make sure run has used all wildcards
+        else {
+          if (
+            currentRun.filter((card) => card.type == "wild").length !==
+            wildCards.length
+          ) {
+            const lastCard = currentRun[currentRun.length - 1];
+            let lastNumber: number;
+            if (lastCard.type == "number") lastNumber = parseInt(card.text, 10);
+            else {
+              const indexOffset = currentRun.findLastIndex(
+                (card) => card.type == "number"
+              );
+              const num = parseInt(currentRun[indexOffset].text, 10);
+              lastNumber = currentRun.length - indexOffset + num;
+            }
+            const wildCard = removeCardsFromArray(hand, currentRun).find(
+              (card) => card.type == "wild"
+            )!;
+            if (lastNumber < 12) currentRun.push(wildCard);
+            else currentRun.unshift(wildCard);
           }
-          currentRun.push(card);
-        } else {
           acc.push([card]);
-          wildCards = hand.filter((card) => card.type == "wild");
         }
         return acc;
       },
       null as null | Card[][]
     )!
     .sort((a, b) => b.length - a.length);
-  console.log(runs.map((cards) => cards.map((card) => card.text).join(",")));
+  console.log(
+    "cards:",
+    hand
+      .sort(sortByNumber)
+      .map((card) => card.text)
+      .join(",")
+  );
+  console.log(
+    "runs:",
+    runs.map((cards) => cards.map((card) => card.text).join(","))
+  );
   return runs;
 };
 

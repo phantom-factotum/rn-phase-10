@@ -41,7 +41,7 @@ export function drawCard(state: GameState, isFromDiscard?: boolean) {
   return card;
 }
 
-function startNextTurn(
+export function startNextTurn(
   gameState: GameState,
   config: { onBotTurnStart?: () => void; onBotTurnEnd?: () => void } = {}
 ) {
@@ -203,8 +203,8 @@ function automateTurn(
   return discardCard(state, {
     card: cardToDiscard,
     targetId,
-    onBotTurnStart,
-    onBotTurnEnd,
+    // onBotTurnStart,
+    // onBotTurnEnd,
   });
   // startNextTurn(state);
 }
@@ -286,7 +286,13 @@ export const scoreCards = (cards: Card[]) => {
 
 export const dealHand = (state: GameState) => {
   const shuffledDeck = shuffleArray(deck);
-  const startPlayerIndex = state.roundsPlayed % state.players.length;
+  // set startPlayerIndex to the player before the actual starter
+  // because we will call the startNextTurn function
+  // we call the startNextTurn function because this where
+  // bot automation happens
+  let startPlayerIndex = (state.roundsPlayed - 1) % state.players.length;
+  if (startPlayerIndex < 0)
+    startPlayerIndex = state.players.length - 1 + startPlayerIndex;
   const startPlayerId = state.players[startPlayerIndex].id;
   const hands: Card[][] = Array(state.totalPlayers)
     .fill(null)
@@ -307,6 +313,7 @@ export const dealHand = (state: GameState) => {
   state.activePlayerId = startPlayerId;
   state.canDraw = true;
   state.canDiscard = false;
+
   return hands;
 };
 

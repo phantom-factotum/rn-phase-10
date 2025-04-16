@@ -104,9 +104,9 @@ export const canHit = (
       return false;
     else if (card.type === "wild") return true;
     const offset = fromStart ? -index - 1 : cards.length - index;
-    console.log("first nonwild card:", firstCard.text);
+    // console.log("first nonwild card:", firstCard.text);
     const nextNum = parseInt(firstCard.text, 10) + offset;
-    console.log("next hit should be", nextNum);
+    // console.log("next hit should be", nextNum);
     return nextNum.toString() === card.text;
   }
   return false;
