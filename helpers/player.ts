@@ -56,27 +56,38 @@ export const updatePhaseObjectiveArea = (player: Player) => {
 };
 
 export const guessBestPlay = (hand: Card[], phase: number) => {
-  const objectives = PHASES[phase].objectives;
+  const [objective1, objective2] = PHASES[phase].objectives;
   // prioritize first objective
-  const possibleMainObjectiveCompletions = groupBy(hand, objectives[0].type);
-  if (objectives.length == 1) return [possibleMainObjectiveCompletions[0]];
-  // when theres 2 we go through each possible grouping
-  // the first objective used to prevent using duplicate cards
-  const objective2 = possibleMainObjectiveCompletions.map((group) => {
+  const possibleObjective1 = groupBy(
+    hand,
+    objective1.type,
+    objective1.objectiveLength
+  );
+  if (!objective2) return [possibleObjective1[0]];
+  const allPossibilities: [Card[], Card[]][] = [];
+  possibleObjective1.forEach((group) => {
+    // when theres 2 we go through each possible grouping
+    // the first objective used to prevent using duplicate cards
     const remainingCards = removeCardsFromArray(hand, group);
-    return groupBy(remainingCards, objectives[1].type);
+    groupBy(
+      remainingCards,
+      objective2.type,
+      objective2.objectiveLength
+    ).forEach((group2) => {
+      allPossibilities.push([group, group2]);
+    });
   });
+  console.log("possibilities considered", allPossibilities.length);
   // cycle through objective1 and objective2 possibilities
   // and pick the hand that have the most cards
-  return possibleMainObjectiveCompletions.reduce(
-    (acc, phaseArea1, index) => {
-      const [list1, list2] = acc;
-      console.log(acc);
-      const accRank = list1.length + list2.length;
-      const phaseArea2 = objective2[index][0];
-      const currentItemRank = phaseArea2.length + phaseArea1.length;
+  return allPossibilities.reduce(
+    (acc, curr, index) => {
+      const [prevArea1, prevArea2] = acc;
+      const [currArea1, currArea2] = curr;
+      const accRank = prevArea1.length + prevArea2.length;
+      const currentItemRank = currArea2.length + currArea1.length;
       if (accRank > currentItemRank) return acc;
-      return [phaseArea1, phaseArea2];
+      return curr;
     },
     [[], []] as Card[][]
   );

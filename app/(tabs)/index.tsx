@@ -34,7 +34,7 @@ export default function HomeScreen() {
   const [gameState, dispatch] = useAtom(gameStateAtom);
   const { activePlayerId, players, canDiscard, canDraw } = gameState;
   const [totalPlayers, setTotalPlayers] = useState(2);
-  const [initialPhase, setInitialPhase] = useState(0);
+  const [initialPhase, setInitialPhase] = useState(4);
   const [botsIsActive, setBotsIsActive] = useState(true);
   const [botIsPlaying, setBotIsPlaying] = useState(false);
   const theme = useTheme();
@@ -88,68 +88,68 @@ export default function HomeScreen() {
         </>
       )}
       {activePlayerId && (
-        <DndProvider
-          style={{ flex: 1 }}
-          onDragEnd={onDragEnd}
-          // a delay will allow ScrollView to function
-          activationDelay={64}
-          key={
-            // onDragEnd event was using stale state so I force the DndProvider
-            // to rerender to use recent state
-            activePlayerId +
-            players
-              .map((p) => p.phaseCompleted.toString() + p.hand.length)
-              .join("-")
-          }
-          onFinalize={(e) => {
-            "worklet";
-            // used to determine whether objective is being
-            // hit from the start or end
-            dragEndX.value = e.x;
-          }}
-        >
-          <View style={[styles.drawCard, canDraw && styles.active]}>
-            <Draggable id="takeFromDeck" disabled={!canDraw}>
-              <Deck
-                deck={gameState.drawPile}
-                drawCard={() =>
-                  dispatch({
-                    type: "drawCard",
-                    data: {
-                      isFromDiscardPile: false,
-                    },
-                  })
-                }
-                activePlayerId={activePlayerId}
-                canDraw={canDraw}
-              />
-            </Draggable>
-            <Draggable
-              id="takeFromDiscardPile"
-              disabled={!canDraw || topDiscardPile?.type === "skip"}
-            >
-              <Droppable id="addToPile" disabled={!canDiscard}>
-                <DiscardPile
-                  style={canDiscard ? styles.active : undefined}
-                  lastDiscarded={topDiscardPile}
+        <ScrollView style={{ backgroundColor: theme.colors.background }}>
+          <DndProvider
+            style={{ flex: 1 }}
+            onDragEnd={onDragEnd}
+            // a delay will allow ScrollView to function
+            activationDelay={64}
+            key={
+              // onDragEnd event was using stale state so I force the DndProvider
+              // to rerender to use recent state
+              activePlayerId +
+              players
+                .map((p) => p.phaseCompleted.toString() + p.hand.length)
+                .join("-")
+            }
+            onFinalize={(e) => {
+              "worklet";
+              // used to determine whether objective is being
+              // hit from the start or end
+              dragEndX.value = e.x;
+            }}
+          >
+            <View style={[styles.drawCard, canDraw && styles.active]}>
+              <Draggable id="takeFromDeck" disabled={!canDraw}>
+                <Deck
+                  deck={gameState.drawPile}
                   drawCard={() =>
                     dispatch({
                       type: "drawCard",
-                      data: { isFromDiscardPile: true },
+                      data: {
+                        isFromDiscardPile: false,
+                      },
                     })
                   }
                   activePlayerId={activePlayerId}
                   canDraw={canDraw}
                 />
-              </Droppable>
-            </Draggable>
-          </View>
-          {/* 
+              </Draggable>
+              <Draggable
+                id="takeFromDiscardPile"
+                disabled={!canDraw || topDiscardPile?.type === "skip"}
+              >
+                <Droppable id="addToPile" disabled={!canDiscard}>
+                  <DiscardPile
+                    style={canDiscard ? styles.active : undefined}
+                    lastDiscarded={topDiscardPile}
+                    drawCard={() =>
+                      dispatch({
+                        type: "drawCard",
+                        data: { isFromDiscardPile: true },
+                      })
+                    }
+                    activePlayerId={activePlayerId}
+                    canDraw={canDraw}
+                  />
+                </Droppable>
+              </Draggable>
+            </View>
+            {/* 
           If you add enough players a scroll view becomes necessary
           but it causes the drag and drop component to become buggy
           */}
-          <View style={{ flex: 1 }}>
-            <ScrollView style={{ backgroundColor: "rgb(26, 25, 25)" }}>
+            <View style={{ flex: 1 }}>
               {players.map((player, ix) => {
                 return (
                   <PlayerHand
@@ -159,9 +159,9 @@ export default function HomeScreen() {
                   />
                 );
               })}
-            </ScrollView>
-          </View>
-        </DndProvider>
+            </View>
+          </DndProvider>
+        </ScrollView>
       )}
       {botIsPlaying && (
         <View

@@ -2,7 +2,7 @@
 A recreation of the Phase 10 game using react native and expo
 
 ## TODO
- - Currently the "npcs" are manned by the user. Try to make them bots?
+ - test bot functionality more
 
 
 ## Weirdness/Bugs

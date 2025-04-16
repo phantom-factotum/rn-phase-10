@@ -59,15 +59,19 @@ function startNextTurn(
   gameState.canDiscard = false;
   gameState.canDraw = true;
   if (gameState.botsIsActive && gameState.activePlayerId !== "player") {
-    onBotTurnStart?.();
-    return automateTurn(gameState, onBotTurnEnd);
+    return automateTurn(gameState, onBotTurnEnd, onBotTurnStart);
   } else {
     return gameState;
   }
   // return;
 }
 
-function automateTurn(state: GameState, onBotTurnEnd?: () => void) {
+function automateTurn(
+  state: GameState,
+  onBotTurnEnd?: () => void,
+  onBotTurnStart?: () => void
+) {
+  onBotTurnStart?.();
   const topDiscardPile = state.discardPile[state.discardPile.length - 1];
   const canDrawFromDiscard = !topDiscardPile || topDiscardPile.type !== "skip";
 
@@ -75,43 +79,104 @@ function automateTurn(state: GameState, onBotTurnEnd?: () => void) {
   let player = state.players.find(
     (player) => player.id == state.activePlayerId
   )!;
-  const allCards = getAvailableCards(player);
+  let allCards = getAvailableCards(player);
+  const hittablePlayers = state.players.filter(
+    (player) => player.phaseCompleted
+  );
 
   // if cant draw from discard draw from deck
   if (!canDrawFromDiscard) {
     cardDrew = drawCard(state, canDrawFromDiscard)!;
   } else {
+    let shouldDrawFromDiscard = false;
     // decide if bot should draw from deck or discard pile
-    const newObjectiveArea = guessBestPlay(
-      allCards.concat(topDiscardPile),
-      player.phase
-    );
-    const discardedCardUsed = !!newObjectiveArea.find((cards) =>
-      cards.find((card) => card.id == topDiscardPile.id)
-    );
+    if (player.phaseCompleted) {
+      shouldDrawFromDiscard = !!hittablePlayers.find((p) =>
+        p.phaseObjectiveArea.find(({ type, cards }) => {
+          return (
+            canHit(type, cards, topDiscardPile, true) ||
+            canHit(type, cards, topDiscardPile, false)
+          );
+        })
+      );
+    } else {
+      const newObjectiveArea = guessBestPlay(
+        allCards.concat(topDiscardPile),
+        player.phase
+      );
+      console.log(
+        newObjectiveArea.map((cards) =>
+          cards.map((card) => card.text).join(",")
+        )
+      );
+      shouldDrawFromDiscard = !!newObjectiveArea.find((cards) =>
+        cards.find((card) => card.id == topDiscardPile.id)
+      );
+    }
     // drawCard does useful things like refilling the deck when it runs out of cards
-    cardDrew = drawCard(state, discardedCardUsed)!;
+    cardDrew = drawCard(state, shouldDrawFromDiscard)!;
   }
-  // update player
-  player = state.players.find((player) => player.id === state.activePlayerId)!;
   console.log("bot drew", cardDrew.text);
+  // update player & allCards
+  player = state.players.find((player) => player.id === state.activePlayerId)!;
+  allCards = getAvailableCards(player);
   // add cards to objectiveArea
-  const newObjectiveArea = guessBestPlay(player.hand, player.phase);
-  console.log(
-    "bot will set phaseObjectiveArea to ",
-    newObjectiveArea.map((cards) => cards.map((card) => card.text)).join(", ")
-  );
-  // TODO : guestBestPlay doesnt handle wild usage
-  player.phaseObjectiveArea = player.phaseObjectiveArea.map((o, index) => {
-    const cards = newObjectiveArea[index];
-    return {
-      ...o,
-      cards,
-      canComplete: verifyPhase(o.type, cards, o.objectiveLength),
-    };
-  });
-  player.hand = removeCardsFromArray(player.hand, newObjectiveArea.flat());
+  if (!player.phaseCompleted) {
+    const newObjectiveArea = guessBestPlay(allCards, player.phase);
+    console.log(
+      "bot will set phaseObjectiveArea to ",
+      newObjectiveArea.map((cards) => cards.map((card) => card.text)).join(", ")
+    );
+    player.phaseObjectiveArea = player.phaseObjectiveArea.map((o, index) => {
+      const cards = newObjectiveArea[index];
+      return {
+        ...o,
+        cards,
+        canComplete: verifyPhase(o.type, cards, o.objectiveLength),
+      };
+    });
+    console.log("hand before:", allCards.length);
+    player.hand = removeCardsFromArray(player.hand, newObjectiveArea.flat());
+    console.log("hand after:", getAvailableCards(player).length);
+    updatePhaseObjectiveArea(player);
+  }
+  if (player.canCompletePhase) {
+    player.phaseCompleted = true;
+  }
+  if (player.phaseCompleted) {
+    player.hand.forEach((card) => {
+      let objectiveIndex = 0;
+      let fromStart = false;
+      const targetPlayer = hittablePlayers.find((p) =>
+        p.phaseObjectiveArea.find(({ type, cards }, index) => {
+          const canHitFromStart = canHit(type, cards, card, true);
+          const canHitFromEnd = canHit(type, cards, card, false);
+          fromStart = !!canHitFromStart;
+          const shouldHit = canHitFromStart || canHitFromEnd;
+          if (shouldHit) {
+            objectiveIndex = index;
+          }
+          return shouldHit;
+        })
+      );
+      if (targetPlayer) {
+        console.log(
+          "bot will hit player",
+          player.name,
+          "with the card",
+          card.text
+        );
+        hitObjective(player, state.players, {
+          targetId: targetPlayer.id,
+          objectiveIndex,
+          fromStart,
+          card,
+        });
+      }
+    });
+  }
   // sort by card value while ignoring wilds
+  // NOTE: Assumes that all hittable cards have already been played
   const discardableCards = player.hand
     .filter((card) => card.type !== "wild")
     .sort((a, b) => {
@@ -119,6 +184,7 @@ function automateTurn(state: GameState, onBotTurnEnd?: () => void) {
     });
   const cardToDiscard = discardableCards[0];
   let targetId: string | undefined;
+  console.log("bot will discard", cardToDiscard.text);
   if (cardToDiscard.type == "skip") {
     // target player with highest score
     const targetPlayer = state.players
@@ -132,11 +198,14 @@ function automateTurn(state: GameState, onBotTurnEnd?: () => void) {
       )!;
     targetId = targetPlayer.id;
   }
-  setTimeout(() => {
-    onBotTurnEnd?.();
-    discardCard(state, { card: cardToDiscard, targetId });
-    // startNextTurn(state);
-  }, 5000);
+  onBotTurnEnd?.();
+  return discardCard(state, {
+    card: cardToDiscard,
+    targetId,
+    onBotTurnStart,
+    onBotTurnEnd,
+  });
+  // startNextTurn(state);
 }
 export function discardCard(
   state: GameState,
@@ -146,7 +215,7 @@ export function discardCard(
     onBotTurnStart?: () => void;
     onBotTurnEnd?: () => void;
   }
-) {
+): GameState {
   if (state.activePlayerId == null || !state.canDiscard) return state;
   const { card, targetId, onBotTurnStart, onBotTurnEnd } = config;
   // const gameState = state; //deepclone(state);
@@ -154,13 +223,13 @@ export function discardCard(
     (player) => player.id == state.activePlayerId
   );
   if (!player) return state;
-  player.hand = player.hand.filter((card2) => card2.id !== card.id);
+  player.hand = removeCardFromArray(player.hand, card);
   state.discardPile.push(card);
   player.currentHandScore = scorePlayerCards(player);
   if (targetId) {
     state.skipQueue.push(targetId);
   }
-  return startNextTurn(state, { onBotTurnStart, onBotTurnEnd });
+  return startNextTurn({ ...state }, { onBotTurnStart, onBotTurnEnd });
 }
 export async function skipPlayer(
   players: GameState["players"],

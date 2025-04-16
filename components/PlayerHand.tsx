@@ -5,8 +5,7 @@ import { useSetAtom } from "jotai";
 import { StyleSheet, View } from "react-native";
 import { Button, Text, useTheme } from "react-native-paper";
 
-import { groupByRuns, groupBySets } from "@/helpers/array";
-import { useEffect } from "react";
+import { getAvailableCards } from "@/helpers/player";
 import DndButton from "./DndButton";
 import DraggableCards from "./DraggableCards";
 type Props = {
@@ -19,29 +18,8 @@ export default function PlayerHand({ player, activePlayerId }: Props) {
   const dispatch = useSetAtom(gameStateAtom);
   const isActivePlayer = player.id == activePlayerId;
   const theme = useTheme();
-  // Button presses were failing when nested within the Drag and drop component
-  const totalCards = player.phaseCompleted
-    ? player.hand.length
-    : player.hand.length +
-      player.phaseObjectiveArea.reduce(
-        (total, objectiveArea) => total + objectiveArea.cards.length,
-        0
-      );
-  useEffect(() => {
-    const possibleSets = groupBySets(player.hand);
-    const possibleRuns = groupByRuns(player.hand);
-    console.group();
-    console.log("playerId:", player.id);
-    console.log("Runs:");
-    console.log(
-      possibleRuns.map((runs) => runs.map((card) => card.text).join(","))
-    );
-    console.log("Sets:");
-    console.log(
-      possibleSets.map((runs) => runs.map((card) => card.text).join(","))
-    );
-    console.groupEnd();
-  }, [activePlayerId, player]);
+  const totalCards = getAvailableCards(player).length;
+
   return (
     <View style={[styles.container, isActivePlayer && styles.isActivePlayer]}>
       <Text style={{ textAlign: "center" }}>{player.name}</Text>
@@ -54,10 +32,6 @@ export default function PlayerHand({ player, activePlayerId }: Props) {
       </View>
       {(isActivePlayer || player.phaseCompleted) && (
         <View>
-          {/* 
-            Normal button presses do not register (I think its because its within the drag and drop component)
-            GestureDetector tap gestures does work tho.
-           */}
           {isActivePlayer &&
             player.canCompletePhase &&
             !player.phaseCompleted && (
@@ -79,7 +53,7 @@ export default function PlayerHand({ player, activePlayerId }: Props) {
                         flex: 1,
                         padding: 0,
                         margin: 0,
-                        backgroundColor: "rgb(20, 20, 20)",
+                        backgroundColor: theme.colors.background,
                       }}
                       cards={cards}
                       isDroppable={isActivePlayer || player.phaseCompleted}
@@ -109,15 +83,15 @@ export default function PlayerHand({ player, activePlayerId }: Props) {
       so information about the number of cards a player holds is hidden
       (unless skip card is played, where this info is revealed)
       */}
-      {isActivePlayer && (
+      {
         <View>
           <DraggableCards
-            cards={player.hand}
+            cards={isActivePlayer ? player.hand : getAvailableCards(player)}
             title={`${player.name} hand`}
             isDraggable={isActivePlayer}
             isDroppable={isActivePlayer}
             id={`hand-${player.id}`}
-            isHidden={!isActivePlayer}
+            // isHidden={!isActivePlayer}
           />
           <View style={styles.floatingButtonContainer}>
             <Text variant="bodyLarge">Sort by:</Text>
@@ -132,7 +106,7 @@ export default function PlayerHand({ player, activePlayerId }: Props) {
               <MaterialCommunityIcons
                 name="sort-numeric-ascending"
                 size={36}
-                color={theme.colors.inversePrimary}
+                color={theme.colors.primary}
               />
             </DndButton>
             <DndButton
@@ -146,12 +120,12 @@ export default function PlayerHand({ player, activePlayerId }: Props) {
               <MaterialCommunityIcons
                 name="format-color-fill"
                 size={36}
-                color={theme.colors.inversePrimary}
+                color={theme.colors.primary}
               />
             </DndButton>
           </View>
         </View>
-      )}
+      }
     </View>
   );
 }

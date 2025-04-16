@@ -72,8 +72,9 @@ export const sortCards = (cards: Card[], sortBy: "number" | "color") => {
   return copy.sort(sortBy == "number" ? sortByNumber : sortByColor);
 };
 
-export const groupBySets = (hand: Card[]) => {
-  return hand
+export const groupBySets = (hand: Card[], len: number) => {
+  const wildCards = hand.filter((card) => card.type == "wild");
+  const groups = hand
     .filter((card) => card.type !== "skip" && card.type !== "wild")
     .reduce((acc, card) => {
       const index = acc.findIndex((set) => set[0].text == card.text);
@@ -81,52 +82,108 @@ export const groupBySets = (hand: Card[]) => {
         acc[index].push(card);
       } else acc.push([card]);
       return acc;
-    }, [] as Card[][])
-    .filter((set) => set.length > 1)
-    .sort((a, b) => b.length - a.length);
+    }, [] as Card[][]);
+  while (wildCards.length > 0) {
+    let index = groups.findIndex(
+      (group) => group.length > 1 && group.length < len
+    );
+    if (index < 0)
+      index = groups.reduce(
+        (biggestIndex, group, index) => {
+          if (biggestIndex == null) return index;
+          if (group.length > groups[biggestIndex].length) return index;
+          return biggestIndex;
+        },
+        null as number | null
+      )!;
+    const wildCard = wildCards.pop()!;
+    groups[index].push(wildCard);
+  }
+  return groups.sort((a, b) => b.length - a.length);
+};
+
+const getWildCardValue = (wildCard: Card, cards: Card[]) => {
+  const index = cards.findIndex((card) => card.id === wildCard.id);
+  const firstNumberIndex = cards.findLastIndex(
+    (card, i) => card.type == "number" && i < index
+  );
+  if (firstNumberIndex < 0) return -1;
+  const firstNumber = parseInt(cards[firstNumberIndex].text, 10);
+  return firstNumberIndex - index + firstNumber;
 };
 
 export const groupByRuns = (hand: Card[]) => {
-  const totalWilds = hand.filter((card) => card.type == "wild").length;
-  let remainingWilds = 0;
-  return [...hand]
+  let wildCards = hand.filter((card) => card.type == "wild");
+  const runs = [...hand]
     .sort(sortByNumber)
-    .filter((card) => card.type !== "skip" && card.type !== "wild")
+    .filter((card) => card.type !== "skip")
     .reduce(
-      (acc, card) => {
+      (acc, card: Card) => {
+        if (card.type == "wild") return acc;
+        if (!acc) {
+          return [[card]];
+        }
+        // wilds will be used when there are gaps
         const index = acc.length - 1;
         const currentRun = acc[index];
         const lastCard = currentRun[currentRun.length - 1];
         if (!lastCard) {
-          acc[index] = [card];
+          console.log(currentRun.map((card) => card.text));
           return acc;
         }
-        const lastNumber = parseInt(lastCard.text, 10);
+        const lastNumber =
+          lastCard.type == "wild"
+            ? getWildCardValue(card, currentRun)
+            : parseInt(lastCard.text, 10);
+
         const currentNumber = parseInt(card.text, 10);
         const diff = currentNumber - lastNumber;
-        if (diff < 2) {
+        if (diff == 0) return acc;
+        else if (diff == 1) {
           currentRun.push(card);
-        } else acc.push([card]);
+        } else if (diff == 2 && wildCards.length > 0) {
+          const wildCard = wildCards.pop()!;
+          currentRun.push(wildCard);
+          currentRun.push(card);
+        } else {
+          acc.push([card]);
+          wildCards = hand.filter((card) => card.type == "wild");
+        }
         return acc;
       },
-      [[]] as Card[][]
-    );
+      null as null | Card[][]
+    )!;
+  console.log(runs.map((cards) => cards.map((card) => card.text).join(",")));
+  return runs;
 };
 
 export const groupByColors = (hand: Card[]) => {
-  return hand
+  const wildCards = hand.filter((card) => card.type == "wild");
+  const possiblePhaseAreas = hand
     .filter((card) => card.type !== "skip" && card.type !== "wild")
-    .reduce((acc, card) => {
-      const index = acc.findIndex((group) => group[0].color == card.color);
-      if (index >= 0) {
-        acc[index].push(card);
-      } else acc.push([card]);
-      return acc;
-    }, [] as Card[][]);
+    .reduce(
+      (acc, card) => {
+        if (!acc) return [[card]];
+        const index = acc.findIndex((group) => group[0].color == card.color);
+        if (index >= 0) {
+          acc[index].push(card);
+        } else acc.push([card]);
+        return acc;
+      },
+      null as Card[][] | null
+    )!
+    .sort((a, b) => b.length - a.length);
+  // add wild cards to biggest group
+  possiblePhaseAreas[0] = possiblePhaseAreas[0].concat(wildCards);
+  return possiblePhaseAreas;
 };
 
-export const groupBy = (hand: Card[], type: "run" | "set" | "color") => {
+export function groupBy(
+  hand: Card[],
+  type: "run" | "color" | "set",
+  len?: number
+): Card[][] {
   if (type == "color") return groupByColors(hand);
-  else if (type == "set") return groupBySets(hand);
+  else if (type == "set" && len) return groupBySets(hand, len);
   return groupByRuns(hand);
-};
+}

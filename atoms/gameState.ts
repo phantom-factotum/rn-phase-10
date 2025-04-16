@@ -15,6 +15,7 @@ import {
 import { generatePlayers } from "@/helpers/player";
 import { Card } from "@/types";
 import { atomWithReducer } from "jotai/utils";
+// import { makeShareable } from "react-native-reanimated/lib/typescript/shareables";
 import rfdc from "rfdc";
 import { Actions, GameState, Player } from "./types";
 
@@ -88,8 +89,7 @@ export const gameStateAtom = atomWithReducer<GameState, Actions>(
       }
       case "discardCard": {
         if (!canDiscard) return state;
-        // const newState = deepclone(state);
-        discardCard(newState, action.data);
+        return discardCard(newState, action.data);
         return newState;
       }
 
@@ -114,7 +114,6 @@ export const gameStateAtom = atomWithReducer<GameState, Actions>(
         return newState;
       }
       case "endRound": {
-        // const newState = deepclone(state);
         newState.roundsPlayed++;
         newState.skipQueue = [];
         const hands = dealHand(newState);

@@ -19,5 +19,6 @@ const styles = StyleSheet.create({
     width: CARD_WIDTH,
     height: CARD_HEIGHT,
     borderRadius: 10,
+    opacity: 1,
   },
 });

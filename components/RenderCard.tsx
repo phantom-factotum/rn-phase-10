@@ -1,7 +1,7 @@
 import { CARD_PREVIEW_WIDTH, CARD_WIDTH, CIRCLE_ARC } from "@/constants/card";
 import { Card } from "@/types";
 import { StyleSheet, View, ViewStyle } from "react-native";
-import { Text } from "react-native-paper";
+import { Text, useTheme } from "react-native-paper";
 import Animated from "react-native-reanimated";
 import BlankCard from "./BlankCard";
 const AnimatedBlankCard = Animated.createAnimatedComponent(BlankCard);
@@ -12,16 +12,27 @@ type Props = {
 };
 const cardOffset = CARD_WIDTH - CARD_PREVIEW_WIDTH;
 export default function RenderCard({ card, style, index = 0 }: Props) {
+  const theme = useTheme();
   const shortenedText =
     card.text.length > 2 ? card.text[0].toLocaleUpperCase() : card.text;
-
+  const backgroundColor = theme.colors.inverseSurface;
   return (
     <BlankCard
-      style={{ zIndex: index, backgroundColor: "white", ...(style || {}) }}
+      style={{
+        opacity: 1,
+        zIndex: index,
+        backgroundColor,
+        // borderRadius: 10,
+        ...(style || {}),
+      }}
     >
       <View style={{ height: "100%" }}>
         <View style={[styles.header, { backgroundColor: card.color }]}>
-          <Text style={styles.headerText}>{shortenedText}</Text>
+          <Text
+            style={[styles.headerText, { color: theme.colors.onBackground }]}
+          >
+            {shortenedText}
+          </Text>
         </View>
         <View style={styles.content}>
           <Text style={[styles.contentText, { color: card.color }]}>
@@ -29,7 +40,11 @@ export default function RenderCard({ card, style, index = 0 }: Props) {
           </Text>
         </View>
         <View style={[styles.footer, { backgroundColor: card.color }]}>
-          <Text style={styles.footerText}>{shortenedText}</Text>
+          <Text
+            style={[styles.footerText, { color: theme.colors.onBackground }]}
+          >
+            {shortenedText}
+          </Text>
         </View>
       </View>
     </BlankCard>
