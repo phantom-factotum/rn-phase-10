@@ -137,11 +137,12 @@ function automateTurn(
     });
     console.log("hand before:", allCards.length);
     player.hand = removeCardsFromArray(player.hand, newObjectiveArea.flat());
-    console.log("hand after:", getAvailableCards(player).length);
     updatePhaseObjectiveArea(player);
+    console.log("hand after:", getAvailableCards(player).length);
   }
   if (player.canCompletePhase) {
-    player.phaseCompleted = true;
+    console.log("bot will complete the phase");
+    completePhase(player);
   }
   if (player.phaseCompleted) {
     player.hand.forEach((card) => {

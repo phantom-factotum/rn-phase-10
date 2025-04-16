@@ -138,12 +138,19 @@ export const groupByRuns = (hand: Card[]) => {
 
         const currentNumber = parseInt(card.text, 10);
         const diff = currentNumber - lastNumber;
-        if (diff == 0) return acc;
-        else if (diff == 1) {
+        console.log(
+          `${lastCard.text} has been valued at ${lastNumber}. ${card.text} has been valued at ${currentNumber}. There is a diff of ${diff}`
+        );
+        if (diff == 0) {
+          acc.push([card]);
+          return acc;
+        } else if (diff == 1) {
           currentRun.push(card);
-        } else if (diff == 2 && wildCards.length > 0) {
-          const wildCard = wildCards.pop()!;
-          currentRun.push(wildCard);
+        } else if (diff <= wildCards.length) {
+          for (let i = 0; i < diff; i++) {
+            const wildCard = wildCards.pop()!;
+            currentRun.push(wildCard);
+          }
           currentRun.push(card);
         } else {
           acc.push([card]);
@@ -152,7 +159,8 @@ export const groupByRuns = (hand: Card[]) => {
         return acc;
       },
       null as null | Card[][]
-    )!;
+    )!
+    .sort((a, b) => b.length - a.length);
   console.log(runs.map((cards) => cards.map((card) => card.text).join(",")));
   return runs;
 };
