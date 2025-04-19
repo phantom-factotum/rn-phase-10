@@ -136,7 +136,7 @@ function automateTurn(
       };
     });
     console.log("hand before:", allCards.length);
-    player.hand = removeCardsFromArray(player.hand, newObjectiveArea.flat());
+    player.hand = removeCardsFromArray(allCards, newObjectiveArea.flat());
     updatePhaseObjectiveArea(player);
     console.log("hand after:", getAvailableCards(player).length);
   }
@@ -203,8 +203,8 @@ function automateTurn(
   return discardCard(state, {
     card: cardToDiscard,
     targetId,
-    // onBotTurnStart,
-    // onBotTurnEnd,
+    onBotTurnStart,
+    onBotTurnEnd,
   });
   // startNextTurn(state);
 }
@@ -306,7 +306,20 @@ export const dealHand = (state: GameState) => {
     const card = shuffledDeck.shift()!;
     hands[index].push(card);
   }
-
+  hands[1].push({
+    type: "wild",
+    id: "nah-hanasdf",
+    value: 25,
+    text: "wild",
+    color: "green",
+  });
+  hands[1].push({
+    type: "wild",
+    id: "nah-hanaadsfafsdsdf",
+    value: 25,
+    text: "wild",
+    color: "green",
+  });
   const topDiscardPile = shuffledDeck.shift()!;
   state.drawPile = shuffledDeck;
   state.discardPile = [topDiscardPile];

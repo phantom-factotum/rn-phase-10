@@ -1,4 +1,4 @@
-import { Card, Objectives } from "@/types";
+import { Card, Objectives, WildCard } from "@/types";
 
 const phases = [
   "2 sets of 3",
@@ -122,4 +122,13 @@ const PHASES = phases.map((title) => {
     })),
   };
 });
+
+export const getWildCardValue = (run: Card[], wildCard: WildCard) => {
+  const wildCardIndex = run.findIndex((card) => card.id == wildCard.id);
+  const lastNumCardIndex = run.findLastIndex(
+    (card, i) => card.type == "number" && i < wildCardIndex
+  );
+  const lastNumber = parseInt(run[lastNumCardIndex].text, 10);
+  return lastNumber + wildCardIndex - lastNumCardIndex;
+};
 export default PHASES;

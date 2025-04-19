@@ -149,55 +149,86 @@ export const groupByRuns2 = (hand: Card[]): Card[][] => {
 };
 
 export const groupByRuns = (hand: Card[]) => {
-  const wildCards = hand.filter((card) => card.type == "wild");
-  const runs = [...hand]
-    .filter((card) => card.type !== "skip")
-    .sort(sortByNumber)
+  const wildcards = hand.filter((card) => card.type == "wild");
+  let wildsRemainingInRun = wildcards.length;
+  const numbers = Array.from(
+    new Set(
+      hand
+        .filter((card) => card.type == "number")
+        .map((card) => parseInt(card.text, 10))
+    )
+  ).sort((a, b) => a - b);
+  console.log("filtered:", numbers);
+  const numberRuns = numbers
     .reduce(
-      (acc, card: Card) => {
-        if (!acc) {
-          return [[card]];
+      (runs, num, index) => {
+        if (!runs) {
+          return [[num]];
         }
-        const currentRun = acc[acc.length - 1];
-        const canHitFromEnd = canHit("run", currentRun, card);
-        const canHitFromStart = canHit("run", currentRun, card, true);
-        // try to run from end
-        if (canHitFromEnd) {
-          currentRun.push(card);
-        }
-        // try to hit run from start
-        else if (canHitFromStart) {
-          currentRun.unshift(card);
-        }
-        // make sure run has used all wildcards
-        else {
-          if (
-            currentRun.filter((card) => card.type == "wild").length !==
-            wildCards.length
-          ) {
-            const lastCard = currentRun[currentRun.length - 1];
-            let lastNumber: number;
-            if (lastCard.type == "number") lastNumber = parseInt(card.text, 10);
-            else {
-              const indexOffset = currentRun.findLastIndex(
-                (card) => card.type == "number"
-              );
-              const num = parseInt(currentRun[indexOffset].text, 10);
-              lastNumber = currentRun.length - indexOffset + num;
-            }
-            const wildCard = removeCardsFromArray(hand, currentRun).find(
-              (card) => card.type == "wild"
-            )!;
-            if (lastNumber < 12) currentRun.push(wildCard);
-            else currentRun.unshift(wildCard);
+        const currentRun = runs[runs.length - 1];
+        const lastNum = currentRun[currentRun.length - 1];
+        const gap = num - lastNum;
+        if (gap < 0) {
+          console.log("wild card has been exposed (should not be possible)");
+          console.log(currentRun);
+        } else if (gap == 1) {
+          currentRun.push(num);
+        } else if (gap < wildsRemainingInRun - 1) {
+          const arr = Array(gap - 1).fill(13);
+          console.log("filling in gap:", lastNum, arr, num);
+          runs[runs.length - 1] = currentRun.concat(arr, num);
+          wildsRemainingInRun -= gap - 1;
+          // wildcards will be 13
+        } else if (wildsRemainingInRun > 0) {
+          let nextIndex = index + 1;
+          let nextNumber =
+            index + 1 < numbers.length ? numbers[nextIndex] : NaN;
+          let nextGap = nextNumber - num;
+          let canFillToNextNumber =
+            nextNumber && nextGap < wildsRemainingInRun - 1;
+          // only use the wilds necessary to get to next number
+          if (canFillToNextNumber) {
+            runs[runs.length - 1] = currentRun.concat(
+              Array(nextGap - 1).fill(13)
+            );
+            wildsRemainingInRun -= nextGap - 1;
+            return runs;
           }
-          acc.push([card]);
+          // use all the wilds until you reach 12
+          const gapToEnd = 12 - num;
+          const endFill =
+            gapToEnd > wildsRemainingInRun ? wildsRemainingInRun : gapToEnd;
+          wildsRemainingInRun -= endFill;
+          runs[runs.length - 1] = currentRun.concat(Array(endFill).fill(13));
+          // if run reaches 12 and wilds remain add them to start of run
+          if (wildsRemainingInRun > 0) {
+            runs[runs.length - 1] = Array(wildsRemainingInRun)
+              .fill(13)
+              .concat(currentRun);
+            wildsRemainingInRun = 0;
+          }
+        } else {
+          runs.push([num]);
+          wildsRemainingInRun = wildcards.length;
         }
-        return acc;
+        return runs;
       },
-      null as null | Card[][]
+      null as null | number[][]
     )!
     .sort((a, b) => b.length - a.length);
+  console.log(numberRuns);
+  const runs = numberRuns.map((run, index) => {
+    const idsUsed: string[] = [];
+    return run.map((num) => {
+      const card = hand.find((card) => {
+        const idUsed = idsUsed.find((id) => card.id == id);
+        const numberToString = num == 13 ? "wild" : num.toString();
+        return !idUsed && card.text == numberToString;
+      })!;
+      idsUsed.push(card.id);
+      return card;
+    });
+  });
   console.log(
     "cards:",
     hand
@@ -207,7 +238,7 @@ export const groupByRuns = (hand: Card[]) => {
   );
   console.log(
     "runs:",
-    runs.map((cards) => cards.map((card) => card.text).join(","))
+    runs.map((run) => run.map((card) => card.text).join(","))
   );
   return runs;
 };
