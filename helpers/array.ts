@@ -57,7 +57,7 @@ export const getRandomInt = (min = 0, max = 1) => {
 };
 
 const getCardNumber = (card: Card) => {
-  if (card.type == "wild") return 13;
+  if (card.type == "wild") return 15;
   if (card.type == "skip") return 14;
   return parseInt(card.text, 10);
 };
@@ -151,6 +151,8 @@ export const groupByRuns2 = (hand: Card[]): Card[][] => {
 export const groupByRuns = (hand: Card[]) => {
   const wildcards = hand.filter((card) => card.type == "wild");
   let wildsRemainingInRun = wildcards.length;
+  // its easier to create runs if we remove duplicates
+  // and work with numbers rather than objects
   const numbers = Array.from(
     new Set(
       hand
@@ -158,7 +160,6 @@ export const groupByRuns = (hand: Card[]) => {
         .map((card) => parseInt(card.text, 10))
     )
   ).sort((a, b) => a - b);
-  console.log("filtered:", numbers);
   const numberRuns = numbers
     .reduce(
       (runs, num, index) => {
@@ -169,27 +170,32 @@ export const groupByRuns = (hand: Card[]) => {
         const lastNum = currentRun[currentRun.length - 1];
         const gap = num - lastNum;
         if (gap < 0) {
-          console.log("wild card has been exposed (should not be possible)");
+          // the only time gaps are less than 0 is when the previous iteration
+          // last push to the run was a wildcard. this shoud be impossible
+          console.log("wild card has been exposed");
+          // currentRun.push(num);
           console.log(currentRun);
-        } else if (gap == 1) {
+        } else if (gap == 0 || gap == 1) {
+          // gap will be 0 if in the previous iteration wilds were used to
+          // bridge the gap
           currentRun.push(num);
         } else if (gap < wildsRemainingInRun - 1) {
-          const arr = Array(gap - 1).fill(13);
+          // wildcards will be 15
+          const arr = Array(gap - 1).fill(15);
           console.log("filling in gap:", lastNum, arr, num);
           runs[runs.length - 1] = currentRun.concat(arr, num);
           wildsRemainingInRun -= gap - 1;
-          // wildcards will be 13
         } else if (wildsRemainingInRun > 0) {
           let nextIndex = index + 1;
-          let nextNumber =
-            index + 1 < numbers.length ? numbers[nextIndex] : NaN;
+          let nextNumber = numbers[nextIndex] || NaN;
           let nextGap = nextNumber - num;
           let canFillToNextNumber =
-            nextNumber && nextGap < wildsRemainingInRun - 1;
+            nextGap && nextGap < wildsRemainingInRun - 1;
           // only use the wilds necessary to get to next number
           if (canFillToNextNumber) {
             runs[runs.length - 1] = currentRun.concat(
-              Array(nextGap - 1).fill(13)
+              Array(nextGap - 1).fill(15),
+              nextNumber
             );
             wildsRemainingInRun -= nextGap - 1;
             return runs;
@@ -199,11 +205,11 @@ export const groupByRuns = (hand: Card[]) => {
           const endFill =
             gapToEnd > wildsRemainingInRun ? wildsRemainingInRun : gapToEnd;
           wildsRemainingInRun -= endFill;
-          runs[runs.length - 1] = currentRun.concat(Array(endFill).fill(13));
+          runs[runs.length - 1] = currentRun.concat(Array(endFill).fill(15));
           // if run reaches 12 and wilds remain add them to start of run
           if (wildsRemainingInRun > 0) {
             runs[runs.length - 1] = Array(wildsRemainingInRun)
-              .fill(13)
+              .fill(15)
               .concat(currentRun);
             wildsRemainingInRun = 0;
           }
@@ -216,13 +222,12 @@ export const groupByRuns = (hand: Card[]) => {
       null as null | number[][]
     )!
     .sort((a, b) => b.length - a.length);
-  console.log(numberRuns);
   const runs = numberRuns.map((run, index) => {
     const idsUsed: string[] = [];
     return run.map((num) => {
       const card = hand.find((card) => {
         const idUsed = idsUsed.find((id) => card.id == id);
-        const numberToString = num == 13 ? "wild" : num.toString();
+        const numberToString = num == 15 ? "wild" : num.toString();
         return !idUsed && card.text == numberToString;
       })!;
       idsUsed.push(card.id);
