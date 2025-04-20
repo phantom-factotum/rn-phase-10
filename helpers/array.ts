@@ -1,5 +1,4 @@
-import { canHit } from "@/constants/phases";
-import { Card } from "@/types";
+import { Card, NumberCard } from "@/types";
 
 export function shuffleArray<T>(arr: Array<T>) {
   const array = [...arr];
@@ -107,145 +106,98 @@ export const groupBySets = (hand: Card[], len: number) => {
   return groups.sort((a, b) => b.length - a.length);
 };
 
-export const findHit = (run: Card[], hand: Card[]) => {
-  return findEndHit(run, hand) || findFrontHit(run, hand);
+export function getLastArrayItem<T>(arr: T[]) {
+  // specify that item could possibly not exist
+  return arr[arr.length - 1] || null;
+}
+export const getUniqueCardNumbers = (hand: Card[]) => {
+  return hand
+    .reduce((cards, card) => {
+      if (
+        card.type == "number" &&
+        !cards.find((card2) => card2.text == card.text)
+      ) {
+        cards.push(card);
+      }
+      return cards;
+    }, [] as NumberCard[])
+    .sort(sortByNumber);
 };
-
-export const findEndHit = (run: Card[], hand: Card[]) => {
-  return hand.find((card) => canHit("run", run, card, false));
+export const printCards = (hand: Card[]) => {
+  console.log(hand.map((card) => card.text).join(","));
 };
-export const findFrontHit = (run: Card[], hand: Card[]) => {
-  return hand.find((card) => canHit("run", run, card, true));
-};
+export const printRuns = (runs: Card[][]) =>
+  console.log(runs.map((run) => run.map((card) => card.text).join(",")));
 
-export const groupByRuns2 = (hand: Card[]): Card[][] => {
-  const runs: Card[][] = [];
-  hand.sort(sortByNumber).forEach((card) => {
-    let remainingCards = removeCardFromArray(hand, card);
-    if (!runs[runs.length - 1]) {
-      runs.push([card]);
-    }
-    const currentRun = runs[runs.length - 1];
-
-    while (findHit(currentRun, remainingCards)) {
-      const hit = findHit(currentRun, remainingCards)!;
-      remainingCards = removeCardFromArray(currentRun, hit);
-      currentRun.push(hit);
-    }
-  });
-
-  console.log(
-    "cards:",
-    hand
-      .sort(sortByNumber)
-      .map((card) => card.text)
-      .join(",")
-  );
-  console.log(
-    "runs:",
-    runs.map((cards) => cards.map((card) => card.text).join(","))
-  );
-  return runs.sort((a, b) => b.length - a.length);
-};
-
+export function getCardValue(card: Card, run: Card[]) {
+  if (card.type == "number") {
+    run;
+    return parseInt(card.text, 10);
+  }
+  const cardIndex = run.findIndex((card2) => card2.id == card.id);
+  const numberCardIx = run.findIndex((card, index) => card.type == "number");
+  const lastNumber = parseInt(run[numberCardIx].text, 10);
+  const indexDiff = cardIndex - numberCardIx;
+  // there is no numberCard before the wild
+  if (indexDiff > 0) {
+    return indexDiff + lastNumber;
+  } else {
+    return indexDiff + lastNumber;
+  }
+}
 export const groupByRuns = (hand: Card[]) => {
-  const wildcards = hand.filter((card) => card.type == "wild");
-  let wildsRemainingInRun = wildcards.length;
-  // its easier to create runs if we remove duplicates
-  // and work with numbers rather than objects
-  const numbers = Array.from(
-    new Set(
-      hand
-        .filter((card) => card.type == "number")
-        .map((card) => parseInt(card.text, 10))
-    )
-  ).sort((a, b) => a - b);
-  const numberRuns = numbers
-    .reduce(
-      (runs, num, index) => {
-        if (!runs) {
-          return [[num]];
+  const numberCards = getUniqueCardNumbers(hand);
+  const runs = numberCards.reduce((runs, startCard, index) => {
+    const currentRun: Card[] = [];
+    const wildCards = hand.filter((card) => card.type == "wild");
+    // start a run at each card
+    for (let i = index; i < numberCards.length; i++) {
+      const card = numberCards[i];
+      const lastCard = getLastArrayItem(currentRun);
+      if (!lastCard) {
+        currentRun.push(card);
+        continue;
+      }
+      const lastNumber = getCardValue(lastCard, currentRun);
+      const currNumber = getCardValue(card, currentRun);
+      const gap = currNumber - lastNumber;
+      if (gap == 1) {
+        currentRun.push(card);
+      } else if (gap - 1 <= wildCards.length) {
+        for (let j = 0; j < gap - 1; j++) {
+          const wildcard = wildCards.pop()!;
+          currentRun.push(wildcard);
         }
-        const currentRun = runs[runs.length - 1];
-        const lastNum = currentRun[currentRun.length - 1];
-        const gap = num - lastNum;
-        if (gap < 0) {
-          // the only time gaps are less than 0 is when the previous iteration
-          // last push to the run was a wildcard. this shoud be impossible
-          console.log("wild card has been exposed");
-          // currentRun.push(num);
-          console.log(currentRun);
-        } else if (gap == 0 || gap == 1) {
-          // gap will be 0 if in the previous iteration wilds were used to
-          // bridge the gap
-          currentRun.push(num);
-        } else if (gap < wildsRemainingInRun - 1) {
-          // wildcards will be 15
-          const arr = Array(gap - 1).fill(15);
-          console.log("filling in gap:", lastNum, arr, num);
-          runs[runs.length - 1] = currentRun.concat(arr, num);
-          wildsRemainingInRun -= gap - 1;
-        } else if (wildsRemainingInRun > 0) {
-          let nextIndex = index + 1;
-          let nextNumber = numbers[nextIndex] || NaN;
-          let nextGap = nextNumber - num;
-          let canFillToNextNumber =
-            nextGap && nextGap < wildsRemainingInRun - 1;
-          // only use the wilds necessary to get to next number
-          if (canFillToNextNumber) {
-            runs[runs.length - 1] = currentRun.concat(
-              Array(nextGap - 1).fill(15),
-              nextNumber
-            );
-            wildsRemainingInRun -= nextGap - 1;
-            return runs;
-          }
-          // use all the wilds until you reach 12
-          const gapToEnd = 12 - num;
-          const endFill =
-            gapToEnd > wildsRemainingInRun ? wildsRemainingInRun : gapToEnd;
-          wildsRemainingInRun -= endFill;
-          runs[runs.length - 1] = currentRun.concat(Array(endFill).fill(15));
-          // if run reaches 12 and wilds remain add them to start of run
-          if (wildsRemainingInRun > 0) {
-            runs[runs.length - 1] = Array(wildsRemainingInRun)
-              .fill(15)
-              .concat(currentRun);
-            wildsRemainingInRun = 0;
-          }
-        } else {
-          runs.push([num]);
-          wildsRemainingInRun = wildcards.length;
-        }
-        return runs;
-      },
-      null as null | number[][]
-    )!
-    .sort((a, b) => b.length - a.length);
-  const runs = numberRuns.map((run, index) => {
-    const idsUsed: string[] = [];
-    return run.map((num) => {
-      const card = hand.find((card) => {
-        const idUsed = idsUsed.find((id) => card.id == id);
-        const numberToString = num == 15 ? "wild" : num.toString();
-        return !idUsed && card.text == numberToString;
-      })!;
-      idsUsed.push(card.id);
-      return card;
-    });
-  });
-  console.log(
-    "cards:",
-    hand
-      .sort(sortByNumber)
-      .map((card) => card.text)
-      .join(",")
-  );
-  console.log(
-    "runs:",
-    runs.map((run) => run.map((card) => card.text).join(","))
-  );
-  return runs;
+        currentRun.push(card);
+      } else {
+        console.log(
+          "remaining cards cant be used to continue run. Wilds remaining:",
+          wildCards.length
+        );
+        printCards(currentRun);
+        printCards(hand.slice(index));
+        break;
+      }
+    }
+    while (wildCards.length > 0) {
+      const wildCard = wildCards.pop()!;
+      const lastCardNumber = getCardValue(
+        getLastArrayItem(currentRun)!,
+        currentRun
+      );
+      const firstCardNumber = getCardValue(currentRun[0], currentRun);
+      if (lastCardNumber < 12) {
+        currentRun.push(wildCard);
+      } else if (firstCardNumber > 1) {
+        currentRun.unshift(wildCard);
+      } else {
+        console.log("wilds remain but you somehow messed up");
+      }
+    }
+    runs.push(currentRun);
+    return runs;
+  }, [] as Card[][])!;
+  return runs.sort((a, b) => b.length - a.length);
 };
 
 export const groupByColors = (hand: Card[]) => {

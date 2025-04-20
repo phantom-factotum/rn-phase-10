@@ -184,6 +184,13 @@ function automateTurn(
       return b.value - a.value;
     });
   const cardToDiscard = discardableCards[0];
+  // if the bot uses their entire hand to complete the phase
+  // then cardToDiscard will be undefined and crash the game
+  if (!cardToDiscard && player.hand.length == 0) {
+    // bot has won game hopefully this will trigger round end
+    // havent tested that this works
+    return startNextTurn(state);
+  }
   let targetId: string | undefined;
   console.log("bot will discard", cardToDiscard.text);
   if (cardToDiscard.type == "skip") {
@@ -206,7 +213,6 @@ function automateTurn(
     onBotTurnStart,
     onBotTurnEnd,
   });
-  // startNextTurn(state);
 }
 export function discardCard(
   state: GameState,
