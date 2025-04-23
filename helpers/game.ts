@@ -1,20 +1,16 @@
 import { GameState, GameStateDispatch, Player } from "@/atoms/types";
 import deck from "@/constants/deck";
-import { canHit, verifyPhase } from "@/constants/phases";
+import { canHit } from "@/constants/phases";
 import { Card, SkipCard } from "@/types";
 import AsyncAlert from "react-native-alert-async";
-import rfdc from "rfdc";
+import { removeItemFromArray, shuffleArray } from "./array";
 import {
-  removeCardFromArray,
-  removeCardsFromArray,
-  shuffleArray,
-} from "./array";
-import {
-  getAvailableCards,
-  guessBestPlay,
-  updatePhaseObjectiveArea,
-} from "./player";
-const deepclone = rfdc();
+  findCardToDiscard,
+  generateHits,
+  shouldUseDiscard,
+  updateBotPhaseObjectiveArea,
+} from "./bot";
+import { updatePhaseObjectiveArea } from "./player";
 
 export function drawCard(state: GameState, isFromDiscard?: boolean) {
   if (state.activePlayerId === null || !state.canDraw) return;
@@ -70,120 +66,31 @@ function automateTurn(
   state: GameState,
   onBotTurnEnd?: () => void,
   onBotTurnStart?: () => void
-) {
+): GameState {
   onBotTurnStart?.();
-  const topDiscardPile = state.discardPile[state.discardPile.length - 1];
-  const canDrawFromDiscard = !topDiscardPile || topDiscardPile.type !== "skip";
 
-  let cardDrew: Card;
+  const fromDiscard = shouldUseDiscard(state);
+  const cardDrew = drawCard(state, fromDiscard)!;
+  console.log("bot drew", cardDrew.text);
   let player = state.players.find(
     (player) => player.id == state.activePlayerId
   )!;
-  let allCards = getAvailableCards(player);
-  const hittablePlayers = state.players.filter(
-    (player) => player.phaseCompleted
-  );
-
-  // if cant draw from discard draw from deck
-  if (!canDrawFromDiscard) {
-    cardDrew = drawCard(state, canDrawFromDiscard)!;
-  } else {
-    let shouldDrawFromDiscard = false;
-    // decide if bot should draw from deck or discard pile
-    if (player.phaseCompleted) {
-      shouldDrawFromDiscard = !!hittablePlayers.find((p) =>
-        p.phaseObjectiveArea.find(({ type, cards }) => {
-          return (
-            canHit(type, cards, topDiscardPile, true) ||
-            canHit(type, cards, topDiscardPile, false)
-          );
-        })
-      );
-    } else {
-      const newObjectiveArea = guessBestPlay(
-        allCards.concat(topDiscardPile),
-        player.phase
-      );
-      console.log(
-        newObjectiveArea.map((cards) =>
-          cards.map((card) => card.text).join(",")
-        )
-      );
-      shouldDrawFromDiscard = !!newObjectiveArea.find((cards) =>
-        cards.find((card) => card.id == topDiscardPile.id)
-      );
-    }
-    // drawCard does useful things like refilling the deck when it runs out of cards
-    cardDrew = drawCard(state, shouldDrawFromDiscard)!;
-  }
-  console.log("bot drew", cardDrew.text);
-  // update player & allCards
-  player = state.players.find((player) => player.id === state.activePlayerId)!;
-  allCards = getAvailableCards(player);
   // add cards to objectiveArea
   if (!player.phaseCompleted) {
-    const newObjectiveArea = guessBestPlay(allCards, player.phase);
-    console.log(
-      "bot will set phaseObjectiveArea to ",
-      newObjectiveArea.map((cards) => cards.map((card) => card.text)).join(", ")
-    );
-    player.phaseObjectiveArea = player.phaseObjectiveArea.map((o, index) => {
-      const cards = newObjectiveArea[index];
-      return {
-        ...o,
-        cards,
-        canComplete: verifyPhase(o.type, cards, o.objectiveLength),
-      };
-    });
-    console.log("hand before:", allCards.length);
-    player.hand = removeCardsFromArray(allCards, newObjectiveArea.flat());
-    updatePhaseObjectiveArea(player);
-    console.log("hand after:", getAvailableCards(player).length);
-  }
-  if (player.canCompletePhase) {
-    console.log("bot will complete the phase");
-    completePhase(player);
+    updateBotPhaseObjectiveArea(player);
+    if (player.canCompletePhase) {
+      console.log("bot will complete the phase");
+      completePhase(player);
+    }
   }
   if (player.phaseCompleted) {
-    player.hand.forEach((card) => {
-      let objectiveIndex = 0;
-      let fromStart = false;
-      const targetPlayer = hittablePlayers.find((p) =>
-        p.phaseObjectiveArea.find(({ type, cards }, index) => {
-          const canHitFromStart = canHit(type, cards, card, true);
-          const canHitFromEnd = canHit(type, cards, card, false);
-          fromStart = !!canHitFromStart;
-          const shouldHit = canHitFromStart || canHitFromEnd;
-          if (shouldHit) {
-            objectiveIndex = index;
-          }
-          return shouldHit;
-        })
-      );
-      if (targetPlayer) {
-        console.log(
-          "bot will hit player",
-          player.name,
-          "with the card",
-          card.text
-        );
-        hitObjective(player, state.players, {
-          targetId: targetPlayer.id,
-          objectiveIndex,
-          fromStart,
-          card,
-        });
-      }
+    generateHits(player, state.players).forEach((hit) => {
+      hitObjective(player, state.players, hit);
     });
   }
   // sort by card value while ignoring wilds
   // NOTE: Assumes that all hittable cards have already been played
-  const discardableCards = player.hand
-    .filter((card) => card.type !== "wild")
-    .sort((a, b) => {
-      return b.value - a.value;
-    });
-  const cardToDiscard = discardableCards[0];
+  const cardToDiscard = findCardToDiscard(player);
   // if the bot uses their entire hand to complete the phase
   // then cardToDiscard will be undefined and crash the game
   if (!cardToDiscard && player.hand.length == 0) {
@@ -225,12 +132,11 @@ export function discardCard(
 ): GameState {
   if (state.activePlayerId == null || !state.canDiscard) return state;
   const { card, targetId, onBotTurnStart, onBotTurnEnd } = config;
-  // const gameState = state; //deepclone(state);
   const player = state.players.find(
     (player) => player.id == state.activePlayerId
   );
   if (!player) return state;
-  player.hand = removeCardFromArray(player.hand, card);
+  player.hand = removeItemFromArray(player.hand, card);
   state.discardPile.push(card);
   player.currentHandScore = scorePlayerCards(player);
   if (targetId) {
@@ -349,21 +255,21 @@ export const moveBetweenObjectiveAreas = (
   const toObjective = player.phaseObjectiveArea[toIndex];
   const fromObjective = player.phaseObjectiveArea[fromIndex];
   toObjective.cards.push(card);
-  fromObjective.cards = removeCardFromArray(fromObjective.cards, card);
+  fromObjective.cards = removeItemFromArray(fromObjective.cards, card);
   updatePhaseObjectiveArea(player);
 };
 
 export const moveToObjectiveArea = (player: Player, config: CardMoveData) => {
   const { objectiveIndex, card } = config;
   player.phaseObjectiveArea[objectiveIndex].cards.push(card);
-  player.hand = removeCardFromArray(player.hand, card);
+  player.hand = removeItemFromArray(player.hand, card);
   updatePhaseObjectiveArea(player);
 };
 
 export const moveFromObjectiveArea = (player: Player, config: CardMoveData) => {
   const { objectiveIndex, card } = config;
   const objectiveArea = player.phaseObjectiveArea[objectiveIndex];
-  objectiveArea.cards = removeCardFromArray(objectiveArea.cards, card);
+  objectiveArea.cards = removeItemFromArray(objectiveArea.cards, card);
   player.hand.push(card);
   updatePhaseObjectiveArea(player);
 };
@@ -395,7 +301,7 @@ export const hitObjective = (
     } else {
       targetObjective.cards.push(card);
     }
-    player.hand = removeCardFromArray(player.hand, card);
+    player.hand = removeItemFromArray(player.hand, card);
     player.currentHandScore = scorePlayerCards(player);
   }
 };

@@ -34,7 +34,11 @@ export default function PlayerHand({ player, activePlayerId }: Props) {
         <View>
           {isActivePlayer &&
             player.canCompletePhase &&
-            !player.phaseCompleted && (
+            !player.phaseCompleted &&
+            // sometimes player.canCompletePhase doesnt reset to false at round start
+            player.phaseObjectiveArea.every(
+              ({ cards }) => cards.length > 0
+            ) && (
               <DndButton onPress={() => dispatch({ type: "completePhase" })}>
                 <Button>Complete Phase</Button>
               </DndButton>

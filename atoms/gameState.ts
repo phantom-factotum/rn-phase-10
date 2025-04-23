@@ -1,6 +1,7 @@
 import deck from "@/constants/deck";
 import PHASES from "@/constants/phases";
-import { scoreCards, shuffleArray, sortCards } from "@/helpers/array";
+import { scoreCards, shuffleArray } from "@/helpers/array";
+import { sortCards } from "@/helpers/card";
 import {
   completePhase,
   dealHand,
@@ -132,7 +133,6 @@ export const gameStateAtom = atomWithReducer<GameState, Actions>(
           }
           return {
             ...player,
-            phaseCompleted: false,
             score: player.score + scorePlayerCards(player),
             phase,
             hand: hands[i],
@@ -142,6 +142,7 @@ export const gameStateAtom = atomWithReducer<GameState, Actions>(
               canComplete: false,
               cards: [] as Card[],
             })),
+            phaseCompleted: false,
           };
         });
         const filteredPlayers = newState.players.filter(

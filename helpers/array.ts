@@ -1,5 +1,5 @@
 import { Card, NumberCard } from "@/types";
-
+import { getCardValue, sortByNumber } from "./card";
 export function shuffleArray<T>(arr: Array<T>) {
   const array = [...arr];
   let currentIndex = array.length;
@@ -31,15 +31,17 @@ export function countDuplicates(cards: Card[], key: keyof Card) {
   }, counter);
 }
 
-export function removeCardFromArray(arr: Card[], item: Card) {
+export function removeItemFromArray<T extends { id: string }>(
+  arr: T[],
+  item: T
+) {
   return arr.filter((card2) => card2.id !== item.id);
 }
-export function removeCardsFromArray(arr: Card[], cards: Card[]) {
-  let remainingCards = [...arr];
-  cards.forEach((card) => {
-    remainingCards = removeCardFromArray(remainingCards, card);
-  });
-  return remainingCards;
+export function removeItemsFromArray<T extends { id: string }>(
+  arr: T[],
+  cards: T[]
+) {
+  return arr.filter((card) => !cards.find((c) => c.id == card.id));
 }
 export function scoreCards(arr: Card[]) {
   return arr.reduce((total, card) => total + card.value, 0);
@@ -55,27 +57,6 @@ export const getRandomInt = (min = 0, max = 1) => {
   return Math.floor(Math.random() * range) + min;
 };
 
-const getCardNumber = (card: Card) => {
-  if (card.type == "wild") return 15;
-  if (card.type == "skip") return 14;
-  return parseInt(card.text, 10);
-};
-const sortByNumber = (a: Card, b: Card) => {
-  return getCardNumber(a) - getCardNumber(b);
-};
-const getColorStr = (card: Card) => {
-  if (card.type == "wild") return "yyyy";
-  if (card.type == "skip") return "zzzz";
-  return card.color;
-};
-const sortByColor = (a: Card, b: Card) => {
-  return getColorStr(a).localeCompare(getColorStr(b));
-};
-export const sortCards = (cards: Card[], sortBy: "number" | "color") => {
-  const copy = [...cards];
-  return copy.sort(sortBy == "number" ? sortByNumber : sortByColor);
-};
-
 export const groupBySets = (hand: Card[], len: number) => {
   const wildCards = hand.filter((card) => card.type == "wild");
   const groups = hand
@@ -88,6 +69,7 @@ export const groupBySets = (hand: Card[], len: number) => {
       return acc;
     }, [] as Card[][]);
   while (wildCards.length > 0) {
+    // add wildcards to incomplete set
     let index = groups.findIndex(
       (group) => group.length > 1 && group.length < len
     );
@@ -108,7 +90,7 @@ export const groupBySets = (hand: Card[], len: number) => {
 
 export function getLastArrayItem<T>(arr: T[]) {
   // specify that item could possibly not exist
-  return arr[arr.length - 1] || null;
+  return arr[arr.length - 1] || undefined;
 }
 export const getUniqueCardNumbers = (hand: Card[]) => {
   return hand
@@ -123,28 +105,7 @@ export const getUniqueCardNumbers = (hand: Card[]) => {
     }, [] as NumberCard[])
     .sort(sortByNumber);
 };
-export const printCards = (hand: Card[]) => {
-  console.log(hand.map((card) => card.text).join(","));
-};
-export const printRuns = (runs: Card[][]) =>
-  console.log(runs.map((run) => run.map((card) => card.text).join(",")));
 
-export function getCardValue(card: Card, run: Card[]) {
-  if (card.type == "number") {
-    run;
-    return parseInt(card.text, 10);
-  }
-  const cardIndex = run.findIndex((card2) => card2.id == card.id);
-  const numberCardIx = run.findIndex((card, index) => card.type == "number");
-  const lastNumber = parseInt(run[numberCardIx].text, 10);
-  const indexDiff = cardIndex - numberCardIx;
-  // there is no numberCard before the wild
-  if (indexDiff > 0) {
-    return indexDiff + lastNumber;
-  } else {
-    return indexDiff + lastNumber;
-  }
-}
 export const groupByRuns = (hand: Card[]) => {
   const numberCards = getUniqueCardNumbers(hand);
   const runs = numberCards.reduce((runs, startCard, index) => {
@@ -166,16 +127,13 @@ export const groupByRuns = (hand: Card[]) => {
       } else if (gap - 1 <= wildCards.length) {
         for (let j = 0; j < gap - 1; j++) {
           const wildcard = wildCards.pop()!;
+          if (!wildcard) {
+            console.log("wild card calculation is wrong");
+          }
           currentRun.push(wildcard);
         }
         currentRun.push(card);
       } else {
-        console.log(
-          "remaining cards cant be used to continue run. Wilds remaining:",
-          wildCards.length
-        );
-        printCards(currentRun);
-        printCards(hand.slice(index));
         break;
       }
     }

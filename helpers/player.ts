@@ -1,7 +1,7 @@
 import type { Player } from "@/atoms/types";
 import PHASES, { verifyPhase } from "@/constants/phases";
 import { Card } from "@/types";
-import { groupBy, removeCardsFromArray } from "./array";
+import { groupBy, removeItemsFromArray } from "./array";
 export const generatePlayers = (total: number, phase = 0) => {
   return Array(total)
     .fill(null)
@@ -55,6 +55,13 @@ export const updatePhaseObjectiveArea = (player: Player) => {
   );
 };
 
+const isPhaseCompleted = (phaseAreaCards: Card[][], phaseIndex: number) => {
+  const phase = PHASES[phaseIndex].objectives;
+  return phaseAreaCards.every((cards, index) =>
+    verifyPhase(phase[index].type, cards, phase[index].objectiveLength)
+  );
+};
+
 export const guessBestPlay = (hand: Card[], phase: number) => {
   const [objective1, objective2] = PHASES[phase].objectives;
   // prioritize first objective
@@ -68,7 +75,7 @@ export const guessBestPlay = (hand: Card[], phase: number) => {
   possibleObjective1.forEach((group) => {
     // when theres 2 we go through each possible grouping
     // the first objective used to prevent using duplicate cards
-    const remainingCards = removeCardsFromArray(hand, group);
+    const remainingCards = removeItemsFromArray(hand, group);
     groupBy(
       remainingCards,
       objective2.type,
@@ -77,11 +84,18 @@ export const guessBestPlay = (hand: Card[], phase: number) => {
       allPossibilities.push([group, group2]);
     });
   });
-  console.log("possibilities considered", allPossibilities.length);
   // cycle through objective1 and objective2 possibilities
   // and pick the hand that have the most cards
   return allPossibilities.reduce(
     (acc, curr, index) => {
+      const currCompleted = isPhaseCompleted(curr, phase);
+      const prevCompleted = isPhaseCompleted(acc, phase);
+      // possibilities that complete the phase are better
+      // than ones that dont complete it
+      if (currCompleted !== prevCompleted) {
+        if (currCompleted) return curr;
+        return acc;
+      }
       const [prevArea1, prevArea2] = acc;
       const [currArea1, currArea2] = curr;
       const accRank = prevArea1.length + prevArea2.length;
