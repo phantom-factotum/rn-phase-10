@@ -8,6 +8,7 @@ import { Button, Text, useTheme } from "react-native-paper";
 import { getAvailableCards } from "@/helpers/player";
 import DndButton from "./DndButton";
 import DraggableCards from "./DraggableCards";
+import SortButtons from "./PlayerSortButtons";
 type Props = {
   player: Player;
   compactCards?: boolean;
@@ -31,25 +32,47 @@ export default function PlayerHand({ player, activePlayerId }: Props) {
         )}
       </View>
       {(isActivePlayer || player.phaseCompleted) && (
-        <View>
-          {isActivePlayer &&
-            player.canCompletePhase &&
+        <>
+          {isActivePlayer && (
+            <View style={{ flex: 1 }}>
+              <DraggableCards
+                style={{
+                  // flex: 1,
+                  padding: 0,
+                  margin: 0,
+                  backgroundColor: theme.colors.background,
+                }}
+                cards={player.hand}
+                title={`${player.name} hand`}
+                isDraggable={isActivePlayer}
+                isDroppable={isActivePlayer}
+                id={`hand-${player.id}`}
+                isHidden={!isActivePlayer}
+              />
+              <SortButtons player={player} />
+            </View>
+          )}
+          {player.canCompletePhase &&
             !player.phaseCompleted &&
-            // sometimes player.canCompletePhase doesnt reset to false at round start
             player.phaseObjectiveArea.every(
+              // sometimes player.canCompletePhase doesnt reset to false at round start
               ({ cards }) => cards.length > 0
             ) && (
               <DndButton onPress={() => dispatch({ type: "completePhase" })}>
                 <Button>Complete Phase</Button>
               </DndButton>
             )}
+
           <View style={styles.row}>
             {player.phaseObjectiveArea.map(
               ({ canComplete, cards, type, description }, index) => {
                 // where players stores cards to complete phase
                 return (
                   <View
-                    style={{ flex: 1 }}
+                    style={{
+                      flex: 1,
+                      marginHorizontal: 2,
+                    }}
                     key={`${player.id}-objectiveArea-${index}`}
                   >
                     <DraggableCards
@@ -80,62 +103,15 @@ export default function PlayerHand({ player, activePlayerId }: Props) {
               }
             )}
           </View>
-        </View>
+        </>
       )}
-      {/*
-      to save space player's hand are not render when it isnt their turn 
-      so information about the number of cards a player holds is hidden
-      (unless skip card is played, where this info is revealed)
-      */}
-      {
-        <View>
-          <DraggableCards
-            cards={isActivePlayer ? player.hand : getAvailableCards(player)}
-            title={`${player.name} hand`}
-            isDraggable={isActivePlayer}
-            isDroppable={isActivePlayer}
-            id={`hand-${player.id}`}
-            // isHidden={!isActivePlayer}
-          />
-          <View style={styles.floatingButtonContainer}>
-            <Text variant="bodyLarge">Sort by:</Text>
-            <DndButton
-              onPress={() => {
-                dispatch({
-                  type: "sortHand",
-                  data: { type: "number", id: player.id },
-                });
-              }}
-            >
-              <MaterialCommunityIcons
-                name="sort-numeric-ascending"
-                size={36}
-                color={theme.colors.primary}
-              />
-            </DndButton>
-            <DndButton
-              onPress={() => {
-                dispatch({
-                  type: "sortHand",
-                  data: { type: "color", id: player.id },
-                });
-              }}
-            >
-              <MaterialCommunityIcons
-                name="format-color-fill"
-                size={36}
-                color={theme.colors.primary}
-              />
-            </DndButton>
-          </View>
-        </View>
-      }
     </View>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
+    flex: 1,
     padding: 10,
     width: "100%",
     marginVertical: 10,
@@ -147,9 +123,12 @@ const styles = StyleSheet.create({
     borderColor: "blue",
   },
   row: {
+    flex: 1,
     width: "100%",
     flexDirection: "row",
-    padding: 5,
+    // minHeight: CARD_HEIGHT * 2.1,
+    // padding: 5,
+    // height: CARD_HEIGHT * 1.52,
   },
   floatingButtonContainer: {
     alignItems: "flex-end",
@@ -159,8 +138,8 @@ const styles = StyleSheet.create({
     // backgroundColor: "pink",
     // width: 100,
     // height: 100,
-    right: 0,
-    bottom: 20,
+    right: 10,
+    bottom: 0,
     zIndex: 30,
   },
 });

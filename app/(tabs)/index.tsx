@@ -3,6 +3,7 @@ import Deck from "@/components/Deck";
 import DiscardPile from "@/components/DiscardPile";
 import DropdownMenu from "@/components/DropdownMenu";
 import NextRoundModal from "@/components/NextRoundModal";
+import OpponentsHand from "@/components/OpponentsHand";
 import PlayerHand from "@/components/PlayerHand";
 import useOnDragEnd from "@/hooks/useOnDragEnd";
 // import useGameHandler, { Players } from "@/hooks/useGameHandler";
@@ -10,8 +11,7 @@ import { DndProvider, Draggable, Droppable } from "@mgcrea/react-native-dnd";
 import { useAtom } from "jotai";
 import { useState } from "react";
 import { Dimensions, StyleSheet, View } from "react-native";
-import { ScrollView } from "react-native-gesture-handler";
-import { Button, Portal, Text, useTheme } from "react-native-paper";
+import { Button, Portal, useTheme } from "react-native-paper";
 import { useSharedValue } from "react-native-reanimated";
 import { SafeAreaView } from "react-native-safe-area-context";
 
@@ -32,9 +32,10 @@ const initialPhaseChoices = Array(10)
 export default function HomeScreen() {
   const dragEndX = useSharedValue(0);
   const [gameState, dispatch] = useAtom(gameStateAtom);
-  const { activePlayerId, players, canDiscard, canDraw } = gameState;
-  const [totalPlayers, setTotalPlayers] = useState(2);
-  const [initialPhase, setInitialPhase] = useState(4);
+  const { activePlayerId, canDiscard, canDraw } = gameState;
+  const [mainPlayer, ...players] = gameState.players;
+  const [totalPlayers, setTotalPlayers] = useState(4);
+  const [initialPhase, setInitialPhase] = useState(0);
   const [botsIsActive, setBotsIsActive] = useState(true);
   const [botIsPlaying, setBotIsPlaying] = useState(false);
   const theme = useTheme();
@@ -88,93 +89,73 @@ export default function HomeScreen() {
         </>
       )}
       {activePlayerId && (
-        <ScrollView style={{ backgroundColor: theme.colors.background }}>
-          <DndProvider
-            style={{ flex: 1 }}
-            onDragEnd={onDragEnd}
-            // a delay will allow ScrollView to function
-            activationDelay={64}
-            key={
-              // onDragEnd event was using stale state so I force the DndProvider
-              // to rerender to use recent state
-              activePlayerId +
-              players
-                .map((p) => p.phaseCompleted.toString() + p.hand.length)
-                .join("-")
-            }
-            onFinalize={(e) => {
-              "worklet";
-              // used to determine whether objective is being
-              // hit from the start or end
-              dragEndX.value = e.x;
-            }}
-          >
-            <View style={[styles.drawCard, canDraw && styles.active]}>
-              <Draggable id="takeFromDeck" disabled={!canDraw}>
-                <Deck
-                  deck={gameState.drawPile}
+        <DndProvider
+          style={{ flex: 1 }}
+          onDragEnd={onDragEnd}
+          // a delay will allow ScrollView to function
+          activationDelay={120}
+          key={
+            // onDragEnd event was using stale state so I force the DndProvider
+            // to rerender to use recent state
+            activePlayerId +
+            players
+              .map((p) => p.phaseCompleted.toString() + p.hand.length)
+              .join("-")
+          }
+          onFinalize={(e) => {
+            "worklet";
+            // used to determine whether objective is being
+            // hit from the start or end
+            dragEndX.value = e.x;
+          }}
+        >
+          <View style={[styles.drawCard, canDraw && styles.active]}>
+            <Draggable id="takeFromDeck" disabled={!canDraw}>
+              <Deck
+                deck={gameState.drawPile}
+                drawCard={() =>
+                  dispatch({
+                    type: "drawCard",
+                    data: {
+                      isFromDiscardPile: false,
+                    },
+                  })
+                }
+                activePlayerId={activePlayerId}
+                canDraw={canDraw}
+              />
+            </Draggable>
+            <Draggable
+              id="takeFromDiscardPile"
+              disabled={!canDraw || topDiscardPile?.type === "skip"}
+            >
+              <Droppable id="addToPile" disabled={!canDiscard}>
+                <DiscardPile
+                  style={canDiscard ? styles.active : undefined}
+                  lastDiscarded={topDiscardPile}
                   drawCard={() =>
                     dispatch({
                       type: "drawCard",
-                      data: {
-                        isFromDiscardPile: false,
-                      },
+                      data: { isFromDiscardPile: true },
                     })
                   }
                   activePlayerId={activePlayerId}
                   canDraw={canDraw}
                 />
-              </Draggable>
-              <Draggable
-                id="takeFromDiscardPile"
-                disabled={!canDraw || topDiscardPile?.type === "skip"}
-              >
-                <Droppable id="addToPile" disabled={!canDiscard}>
-                  <DiscardPile
-                    style={canDiscard ? styles.active : undefined}
-                    lastDiscarded={topDiscardPile}
-                    drawCard={() =>
-                      dispatch({
-                        type: "drawCard",
-                        data: { isFromDiscardPile: true },
-                      })
-                    }
-                    activePlayerId={activePlayerId}
-                    canDraw={canDraw}
-                  />
-                </Droppable>
-              </Draggable>
-            </View>
-            {/* 
+              </Droppable>
+            </Draggable>
+          </View>
+          <View style={{ flex: 1.5 }}>
+            <PlayerHand player={mainPlayer} activePlayerId={activePlayerId} />
+          </View>
+          {/* 
           If you add enough players a scroll view becomes necessary
           but it causes the drag and drop component to become buggy
           */}
-            <View style={{ flex: 1 }}>
-              {players.map((player, ix) => {
-                return (
-                  <PlayerHand
-                    player={player}
-                    activePlayerId={activePlayerId}
-                    key={player.id}
-                  />
-                );
-              })}
-            </View>
-          </DndProvider>
-        </ScrollView>
+          <OpponentsHand players={players} activePlayerId={activePlayerId} />
+        </DndProvider>
       )}
-      {botIsPlaying && (
-        <View
-          style={[
-            styles.waiting,
-            { backgroundColor: theme.colors.secondaryContainer },
-          ]}
-        >
-          <View style={{ opacity: 0.6 }}>
-            <Text>Computer is playing...</Text>
-          </View>
-        </View>
-      )}
+
       <Portal>
         <NextRoundModal />
       </Portal>

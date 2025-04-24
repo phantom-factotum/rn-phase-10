@@ -55,8 +55,10 @@ export function startNextTurn(
   gameState.canDiscard = false;
   gameState.canDraw = true;
   if (gameState.botsIsActive && gameState.activePlayerId !== "player") {
+    gameState.botIsPlaying = true;
     return automateTurn(gameState, onBotTurnEnd, onBotTurnStart);
   } else {
+    gameState.botIsPlaying = false;
     return gameState;
   }
   // return;
@@ -71,15 +73,15 @@ function automateTurn(
 
   const fromDiscard = shouldUseDiscard(state);
   const cardDrew = drawCard(state, fromDiscard)!;
-  console.log("bot drew", cardDrew.text);
   let player = state.players.find(
     (player) => player.id == state.activePlayerId
   )!;
+  console.log(player.name, "drew", cardDrew.text);
   // add cards to objectiveArea
   if (!player.phaseCompleted) {
     updateBotPhaseObjectiveArea(player);
     if (player.canCompletePhase) {
-      console.log("bot will complete the phase");
+      console.log(player.name, "will complete the phase");
       completePhase(player);
     }
   }
@@ -99,19 +101,25 @@ function automateTurn(
     return startNextTurn(state);
   }
   let targetId: string | undefined;
-  console.log("bot will discard", cardToDiscard.text);
+  console.log(player.name, "will discard", cardToDiscard.text);
   if (cardToDiscard.type == "skip") {
+    console.log(state.players.map((p) => p.id));
     // target player with highest score
     const targetPlayer = state.players
-      .filter((p) => p.id !== player.id)
+      .filter((p) => p.id != player.id)
       .reduce(
         (target, player) => {
           if (!target) return player;
           if (player.score < target.score) return player;
         },
         undefined as Player | undefined
-      )!;
-    targetId = targetPlayer.id;
+      );
+    if (!targetPlayer) {
+      console.log("no person to skip????");
+      console.log(player.id);
+    }
+    targetId = targetPlayer?.id || player.id;
+    console.log(player.name, "will skip", (targetPlayer || player).name);
   }
   onBotTurnEnd?.();
   return discardCard(state, {
@@ -196,15 +204,27 @@ export const scoreCards = (cards: Card[]) => {
   return cards.reduce((total, card) => total + card.value, 0);
 };
 
+const getNextIndex = (players: Player[], index: number, getPrev = false) => {
+  let nextIndex = getPrev ? index - 1 : index + 1;
+  if (nextIndex < 0) {
+    nextIndex = players.length - 1;
+  }
+  return nextIndex % players.length;
+};
+
 export const dealHand = (state: GameState) => {
   const shuffledDeck = shuffleArray(deck);
   // set startPlayerIndex to the player before the actual starter
   // because we will call the startNextTurn function
   // we call the startNextTurn function because this where
   // bot automation happens
-  let startPlayerIndex = (state.roundsPlayed - 1) % state.players.length;
-  if (startPlayerIndex < 0)
-    startPlayerIndex = state.players.length - 1 + startPlayerIndex;
+  const beforeStartPlayerIndex = getNextIndex(
+    state.players,
+    state.roundsPlayed,
+    true
+  );
+  const beforePlayerId = state.players[beforeStartPlayerIndex].id;
+  const startPlayerIndex = getNextIndex(state.players, state.roundsPlayed);
   const startPlayerId = state.players[startPlayerIndex].id;
   const hands: Card[][] = Array(state.totalPlayers)
     .fill(null)
@@ -218,24 +238,18 @@ export const dealHand = (state: GameState) => {
     const card = shuffledDeck.shift()!;
     hands[index].push(card);
   }
-  hands[1].push({
-    type: "wild",
-    id: "nah-hanasdf",
-    value: 25,
-    text: "wild",
-    color: "green",
-  });
-  hands[1].push({
-    type: "wild",
-    id: "nah-hanaadsfafsdsdf",
-    value: 25,
-    text: "wild",
-    color: "green",
-  });
   const topDiscardPile = shuffledDeck.shift()!;
+  // rules state that if skip is at top of discard pile
+  // at round start then the starting player is skipped
+  if (topDiscardPile.type === "skip") {
+    // NOTE: starting the round at the player before starter
+    // and then calling startNextTurn should skip startPlayer
+    console.log("start player was skip");
+    state.skipQueue.push(state.players[startPlayerIndex].id);
+  }
   state.drawPile = shuffledDeck;
   state.discardPile = [topDiscardPile];
-  state.activePlayerId = startPlayerId;
+  state.activePlayerId = beforePlayerId;
   state.canDraw = true;
   state.canDiscard = false;
 

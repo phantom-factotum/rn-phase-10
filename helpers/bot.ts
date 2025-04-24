@@ -48,7 +48,8 @@ export const updateBotPhaseObjectiveArea = (player: Player) => {
   const allCards = getAvailableCards(player);
   const newObjectiveArea = guessBestPlay(allCards, player.phase);
   console.log(
-    "bot will set phaseObjectiveArea to ",
+    player.name,
+    "will set phaseObjectiveArea to ",
     newObjectiveArea.map((cards) => cards.map((card) => card.text)).join(", ")
   );
   player.phaseObjectiveArea = player.phaseObjectiveArea.map((o, index) => {

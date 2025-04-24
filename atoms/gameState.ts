@@ -143,6 +143,7 @@ export const gameStateAtom = atomWithReducer<GameState, Actions>(
               cards: [] as Card[],
             })),
             phaseCompleted: false,
+            botIsPlaying: false,
           };
         });
         const filteredPlayers = newState.players.filter(

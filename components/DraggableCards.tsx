@@ -37,12 +37,12 @@ export default function DraggableCards({
       key={`droppable-${id}`}
       data={dropData}
     >
-      {title && <Text>{title}:</Text>}
+      {title && <Text style={{ width: "100%" }}>{title}:</Text>}
       <View
         style={{
           flexDirection: "row",
           width: "100%",
-          padding: 5,
+          padding: 10,
         }}
       >
         {cards.map((card, index) => {
@@ -56,7 +56,7 @@ export default function DraggableCards({
               id={`draggable-${id}-${card.id}`}
               style={{
                 left,
-                zIndex: 20,
+                zIndex: index + 1,
               }}
               disabled={!isDraggable}
               data={{ ...dragData, card }}
@@ -76,8 +76,8 @@ const styles = StyleSheet.create({
     // flex: 1,
     width: "100%",
     // alignSelf: "center",
-    padding: 5,
-    paddingVertical: 10,
+    padding: 15,
+    // paddingVertical: 10,
     margin: 5,
     marginVertical: 10,
     minWidth: CARD_WIDTH,
