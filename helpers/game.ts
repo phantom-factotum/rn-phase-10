@@ -95,7 +95,7 @@ function automateTurn(
   const cardToDiscard = findCardToDiscard(player);
   // if the bot uses their entire hand to complete the phase
   // then cardToDiscard will be undefined and crash the game
-  if (!cardToDiscard && player.hand.length == 0) {
+  if (!cardToDiscard && player.hand.length == 0 && player.phaseCompleted) {
     // bot has won game hopefully this will trigger round end
     // havent tested that this works
     return startNextTurn(state);
@@ -111,14 +111,11 @@ function automateTurn(
         (target, player) => {
           if (!target) return player;
           if (player.score < target.score) return player;
+          return target;
         },
         undefined as Player | undefined
-      );
-    if (!targetPlayer) {
-      console.log("no person to skip????");
-      console.log(player.id);
-    }
-    targetId = targetPlayer?.id || player.id;
+      )!;
+    targetId = targetPlayer.id;
     console.log(player.name, "will skip", (targetPlayer || player).name);
   }
   onBotTurnEnd?.();

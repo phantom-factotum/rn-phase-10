@@ -34,7 +34,7 @@ export default function PlayerHand({ player, activePlayerId }: Props) {
       {(isActivePlayer || player.phaseCompleted) && (
         <>
           {isActivePlayer && (
-            <View style={{ flex: 1 }}>
+            <View style={styles.cards}>
               <DraggableCards
                 style={{
                   // flex: 1,
@@ -112,9 +112,9 @@ export default function PlayerHand({ player, activePlayerId }: Props) {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    padding: 10,
+    padding: 15,
     width: "100%",
-    marginVertical: 10,
+    margin: 10,
     borderRadius: 15,
     alignSelf: "center",
   },
@@ -127,7 +127,7 @@ const styles = StyleSheet.create({
     width: "100%",
     flexDirection: "row",
     // minHeight: CARD_HEIGHT * 2.1,
-    // padding: 5,
+    padding: 5,
     // height: CARD_HEIGHT * 1.52,
   },
   floatingButtonContainer: {
@@ -141,5 +141,9 @@ const styles = StyleSheet.create({
     right: 10,
     bottom: 0,
     zIndex: 30,
+  },
+  cards: {
+    flex: 1,
+    padding: 5,
   },
 });

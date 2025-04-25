@@ -99,7 +99,14 @@ export default function HomeScreen() {
             // to rerender to use recent state
             activePlayerId +
             players
-              .map((p) => p.phaseCompleted.toString() + p.hand.length)
+              .map(
+                (p) =>
+                  p.phaseCompleted.toString() +
+                  p.hand.length +
+                  p.phaseObjectiveArea.map(({ cards }) =>
+                    cards.map((card) => card.text).join("-")
+                  )
+              )
               .join("-")
           }
           onFinalize={(e) => {
@@ -145,7 +152,7 @@ export default function HomeScreen() {
               </Droppable>
             </Draggable>
           </View>
-          <View style={{ flex: 1.5 }}>
+          <View style={{ flex: 1.8 }}>
             <PlayerHand player={mainPlayer} activePlayerId={activePlayerId} />
           </View>
           {/* 

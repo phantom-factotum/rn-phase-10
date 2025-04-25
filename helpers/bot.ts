@@ -2,7 +2,11 @@ import type { GameState, Player } from "@/atoms/types";
 import { canHit, verifyPhase } from "@/constants/phases";
 import type { Card } from "@/types";
 
-import { removeItemsFromArray } from "./array";
+import {
+  getLastArrayItem,
+  removeItemFromArray,
+  removeItemsFromArray,
+} from "./array";
 import {
   getAvailableCards,
   guessBestPlay,
@@ -106,6 +110,15 @@ export const findCardToDiscard = (player: Player) => {
     .sort((a, b) => {
       return b.value - a.value;
     });
+
   const cardToDiscard = discardableCards[0];
+  // all cards are in the phase objective area
+  if (!cardToDiscard && !player.phaseCompleted) {
+    const lastObjectiveArea = getLastArrayItem(player.phaseObjectiveArea)!;
+    const lastCard = getLastArrayItem(lastObjectiveArea.cards)!;
+    player.phaseObjectiveArea[player.phaseObjectiveArea.length - 1].cards =
+      removeItemFromArray(lastObjectiveArea.cards, lastCard);
+    return lastCard;
+  }
   return cardToDiscard || undefined;
 };
